@@ -4,16 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>StreamDeck Lite</title>
+
+  <!-- iOS "web app" mode -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="StreamDeck" />
+
   <meta name="theme-color" content="#ffffff" />
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- Fallback favicon; iOS prendra une capture si pas d'icône PNG dédiée -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect rx='24' width='128' height='128' fill='%23f4f6f8'/%3E%3Ccircle cx='64' cy='64' r='36' fill='%23007aff'/%3E%3Cpath d='M82 64c0 9.94-8.06 18-18 18s-18-8.06-18-18 8.06-18 18-18 18 8.06 18 18z' fill='%23fff' opacity='.9'/%3E%3C/svg%3E">
+
+  <!-- Empêche zoom à deux doigts pendant le swipe horizontal -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 </head>
 <body>
   <header class="app-header">
     <div class="logo">
+      <!-- petit logo pour une belle capture d'icône -->
       <svg width="24" height="24" viewBox="0 0 128 128" aria-hidden="true">
         <rect rx="24" width="128" height="128" fill="#f4f6f8"></rect>
         <circle cx="64" cy="64" r="36" fill="#007aff"></circle>
@@ -27,12 +36,136 @@
       <button id="toSettings" aria-label="Réglages">●</button>
     </nav>
   </header>
-  <main id="slides" class="slides">
-    <section class="slide"><h1>Lecteur</h1></section>
-    <section class="slide"><h1>Gestion des flux</h1></section>
-    <section class="slide"><h1>Options avancées</h1></section>
+
+  <main id="slides" class="slides" tabindex="0" aria-label="Panneaux glissables">
+    <!-- Slide 1: Lecteur -->
+    <section class="slide" aria-labelledby="player-title">
+      <h1 id="player-title">Lecteur</h1>
+
+      <div class="player-card card">
+        <div class="now-meta">
+          <div class="title" id="nowName">Aucun flux</div>
+          <div class="url" id="nowUrl">—</div>
+        </div>
+
+        <audio id="audio" preload="none" playsinline></audio>
+
+        <div class="controls">
+          <button id="playPause" class="btn primary" disabled>Lecture</button>
+          <button id="stopBtn" class="btn" disabled>Stop</button>
+          <label class="vol">
+            Volume
+            <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
+          </label>
+        </div>
+
+        <div class="extras">
+          <label><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
+          <label><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
+          <div class="sleep">
+            Minuteur sommeil (min) :
+            <input id="sleepMinutes" type="number" min="0" max="240" step="5" value="0" />
+            <button id="sleepStart" class="btn">Démarrer</button>
+            <span id="sleepLeft" class="muted"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Vos flux</h2>
+          <button id="addQuick" class="btn small">+ ajout rapide</button>
+        </div>
+        <ul id="streamList" class="stream-list" aria-live="polite"></ul>
+      </div>
+    </section>
+
+    <!-- Slide 2: Gestion des flux -->
+    <section class="slide" aria-labelledby="library-title">
+      <h1 id="library-title">Gestion des flux</h1>
+
+      <div class="card">
+        <form id="streamForm" class="grid">
+          <input type="hidden" id="streamId" />
+          <label>Nom
+            <input id="streamName" type="text" placeholder="ex. FIP hifi" required />
+          </label>
+          <label>URL
+            <input id="streamUrl" type="url" placeholder="http(s)://..." required />
+          </label>
+          <label>Format (optionnel)
+            <select id="streamFormat">
+              <option value="">Auto</option>
+              <option value="mp3">MP3</option>
+              <option value="aac">AAC</option>
+            </select>
+          </label>
+          <label>Favori
+            <input id="streamFav" type="checkbox" />
+          </label>
+          <label>Notes
+            <input id="streamNotes" type="text" placeholder="bitrate, origine..." />
+          </label>
+
+          <div class="row">
+            <button type="submit" class="btn primary" id="saveStream">Enregistrer</button>
+            <button type="button" class="btn" id="resetForm">Nouveau</button>
+            <button type="button" class="btn danger" id="deleteStream" disabled>Supprimer</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Liste & organisation</h2>
+          <div class="row">
+            <button id="exportJson" class="btn small">Exporter JSON</button>
+            <label class="btn small file-btn">Importer JSON
+              <input id="importJson" type="file" accept="application/json" hidden />
+            </label>
+          </div>
+        </div>
+        <ul id="manageList" class="manage-list"></ul>
+      </div>
+    </section>
+
+    <!-- Slide 3: Avancé -->
+    <section class="slide" aria-labelledby="settings-title">
+      <h1 id="settings-title">Options avancées</h1>
+
+      <div class="card">
+        <h2>Réseau & compatibilité iOS</h2>
+        <label><input type="checkbox" id="tryHttp"> Essayer le HTTP si HTTPS échoue</label>
+        <p class="muted">
+          Sur une page <strong>HTTPS</strong>, les flux <code>http://</code> sont bloqués par iOS.
+          Servez cette appli en <strong>HTTP</strong> (réseau local) pour lire ces flux, ou utilisez le bouton
+          “Ouvrir dans Safari” proposé en cas d’échec.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Interface</h2>
+        <label><input type="checkbox" id="compactList"> Liste compacte</label>
+        <label><input type="checkbox" id="haptics"> Retour haptique (si dispo)</label>
+      </div>
+
+      <div class="card">
+        <h2>Divers</h2>
+        <button id="seedDemo" class="btn small">Insérer des exemples (FIP, etc.)</button>
+        <button id="nukeAll" class="btn danger small">Tout réinitialiser</button>
+        <p class="muted">Version <span id="appVersion"></span></p>
+      </div>
+    </section>
   </main>
-  <footer class="app-footer"><div class="pager" id="pager"><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div></footer>
+
+  <footer class="app-footer">
+    <div class="pager" id="pager">
+      <span class="dot active"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+  </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
