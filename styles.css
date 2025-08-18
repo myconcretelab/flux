@@ -1,1 +1,126 @@
-:root{--bg:#fff;} body{font-family:sans-serif; background:var(--bg);}
+:root{
+  --bg:#ffffff;
+  --fg:#111827;
+  --muted:#6b7280;
+  --card:#f7f8fa;
+  --border:#e5e7eb;
+  --primary:#007aff;
+  --danger:#ef4444;
+  --shadow:0 6px 18px rgba(0,0,0,.08);
+  --radius:16px;
+  --radius-sm:12px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--fg);
+  background:var(--bg);
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+.app-header{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px;
+  background:linear-gradient(#fff,#fff8);
+  backdrop-filter:saturate(160%) blur(8px);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex; gap:10px; align-items:center; font-weight:700}
+.logo svg{border-radius:8px}
+.tabs button{
+  background:none; border:none; font-size:20px; line-height:1; padding:6px 8px; cursor:pointer;
+  opacity:.5;
+}
+.tabs button:focus{outline:2px solid var(--primary)}
+.tabs button.active{opacity:1}
+
+.slides{
+  display:flex; gap:20px;
+  overflow-x:auto; overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  padding:16px;
+  touch-action: pan-y;
+}
+.slide{
+  scroll-snap-align:start;
+  flex:0 0 100%;
+  max-width:680px;
+  margin:0 auto;
+  padding-bottom:64px;
+}
+h1{font-size:20px; margin:8px 4px 16px}
+h2{font-size:16px; margin:0 0 12px}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px;
+  margin-bottom:16px;
+}
+.card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+.row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.grid{
+  display:grid; gap:10px;
+  grid-template-columns:1fr 1fr;
+}
+.grid label{display:flex; flex-direction:column; gap:6px}
+.grid .row{grid-column:1/-1}
+
+label input[type="text"], label input[type="url"], label select, input[type="number"]{
+  padding:12px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px;
+}
+
+.btn{
+  padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer;
+}
+.btn.small{padding:8px 10px; font-size:14px}
+.btn.primary{background:var(--primary); border-color:var(--primary); color:#fff}
+.btn.danger{background:var(--danger); border-color:var(--danger); color:#fff}
+.btn:disabled{opacity:.5; pointer-events:none}
+.file-btn{position:relative; overflow:hidden}
+
+.now-meta{display:flex; flex-direction:column; gap:4px; margin-bottom:10px}
+.now-meta .title{font-weight:700}
+.now-meta .url{font-size:12px; color:var(--muted); word-break:break-all}
+
+.controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0}
+.vol{display:flex; align-items:center; gap:10px}
+.muted{color:var(--muted); font-size:12px}
+
+.stream-list, .manage-list{
+  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;
+}
+.item{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:12px; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm);
+}
+.item .meta{display:flex; flex-direction:column}
+.item .name{font-weight:600}
+.item .sub{font-size:12px; color:var(--muted)}
+.item .actions{display:flex; gap:6px}
+.badge{font-size:11px; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3}
+
+.manage-list .item .left{display:flex; align-items:center; gap:10px}
+.drag-btn, .fav-btn, .edit-btn, .del-btn, .up-btn, .down-btn, .play-btn, .open-btn{
+  background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px; cursor:pointer;
+}
+
+.app-footer{position:sticky; bottom:0; padding:8px 0 14px; background:linear-gradient(#fff0,#fff); }
+.pager{display:flex; justify-content:center; gap:6px}
+.dot{
+  width:8px; height:8px; border-radius:50%; background:#d1d5db;
+}
+.dot.active{background:var(--primary)}
+
+@media (max-width:560px){
+  .grid{grid-template-columns:1fr}
+}
+
+.compact .item{padding:10px}
