@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>StreamDeck Lite</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="StreamDeck" />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect rx='24' width='128' height='128' fill='%23f4f6f8'/%3E%3Ccircle cx='64' cy='64' r='36' fill='%23007aff'/%3E%3Cpath d='M82 64c0 9.94-8.06 18-18 18s-18-8.06-18-18 8.06-18 18-18 18 8.06 18 18z' fill='%23fff' opacity='.9'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 128 128" aria-hidden="true">
+        <rect rx="24" width="128" height="128" fill="#f4f6f8"></rect>
+        <circle cx="64" cy="64" r="36" fill="#007aff"></circle>
+        <path d="M82 64c0 9.94-8.06 18-18 18s-18-8.06-18-18 8.06-18 18-18 18 8.06 18 18z" fill="#fff" opacity=".9"></path>
+      </svg>
+      <span>StreamDeck</span>
+    </div>
+    <nav class="tabs">
+      <button id="toPlayer" aria-label="Lecteur">●</button>
+      <button id="toLibrary" aria-label="Bibliothèque">●</button>
+      <button id="toSettings" aria-label="Réglages">●</button>
+    </nav>
+  </header>
+  <main id="slides" class="slides">
+    <section class="slide"><h1>Lecteur</h1></section>
+    <section class="slide"><h1>Gestion des flux</h1></section>
+    <section class="slide"><h1>Options avancées</h1></section>
+  </main>
+  <footer class="app-footer"><div class="pager" id="pager"><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div></footer>
+  <script src="app.js"></script>
+</body>
+</html>
