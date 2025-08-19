@@ -6,8 +6,10 @@
 
   // DOM refs
   const slides = $('#slides');
-  const dots = [...$('#pager').children];
   const tabs = { player: $('#toPlayer'), lib: $('#toLibrary'), settings: $('#toSettings') };
+  const pagerBtns = Object.values(tabs);
+  const hero = $('#hero');
+  const heroImg = $('#heroImg');
 
   const audio = $('#audio');
   const nowName = $('#nowName');
@@ -88,15 +90,22 @@
   // ------- UI: slides / dots -------
   function snapIndex(){
     const idx = Math.round(slides.scrollLeft / slides.clientWidth);
-    dots.forEach((d,i)=>d.classList.toggle('active', i===idx));
-    tabs.player.classList.toggle('active', idx===0);
-    tabs.lib.classList.toggle('active', idx===1);
-    tabs.settings.classList.toggle('active', idx===2);
+    pagerBtns.forEach((b,i)=>b.classList.toggle('active', i===idx));
   }
   slides.addEventListener('scroll', () => { window.requestAnimationFrame(snapIndex); });
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
   tabs.lib.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth, behavior:'smooth'}));
   tabs.settings.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth*2, behavior:'smooth'}));
+
+  function updateHero(){
+    const hour = new Date().getHours();
+    let mode = 'day';
+    if (hour < 6 || hour >= 18) mode = 'night';
+    else if (hour < 12) mode = 'morning';
+    hero.classList.add(mode);
+    heroImg.src = `images/${mode}.svg`;
+  }
+  updateHero();
 
   // ------- Haptics (soft) -------
   function buzz(){
