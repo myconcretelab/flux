@@ -24,7 +24,7 @@ body{
 
 .app-header{
   position:sticky; top:0; z-index:10;
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex; align-items:center;
   padding:12px 16px;
   background:linear-gradient(#fff,#fff8);
   backdrop-filter:saturate(160%) blur(8px);
@@ -32,12 +32,22 @@ body{
 }
 .logo{display:flex; gap:10px; align-items:center; font-weight:700}
 .logo svg{border-radius:8px}
-.tabs button{
-  background:none; border:none; font-size:20px; line-height:1; padding:6px 8px; cursor:pointer;
-  opacity:.5;
+
+.hero{
+  position:relative;
+  height:180px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
 }
-.tabs button:focus{outline:2px solid var(--primary)}
-.tabs button.active{opacity:1}
+.hero img{width:100%; max-width:300px;}
+.hero::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 20% 30%, #fff6 0%, #fff0 60%),
+             radial-gradient(circle at 80% 70%, #fff6 0%, #fff0 60%);
+}
+.hero.morning{background:linear-gradient(135deg,#fce7f3,#fde68a);}
+.hero.day{background:linear-gradient(135deg,#93c5fd,#bfdbfe);}
+.hero.night{background:linear-gradient(135deg,#1e3a8a,#64748b); color:#fff;}
 
 .slides{
   display:flex; gap:20px;
@@ -111,12 +121,16 @@ label input[type="text"], label input[type="url"], label select, input[type="num
   background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px; cursor:pointer;
 }
 
-.app-footer{position:sticky; bottom:0; padding:8px 0 14px; background:linear-gradient(#fff0,#fff); }
-.pager{display:flex; justify-content:center; gap:6px}
-.dot{
-  width:8px; height:8px; border-radius:50%; background:#d1d5db;
+.app-footer{
+  position:sticky; bottom:0; padding:8px 0 14px;
+  background:linear-gradient(#0000,#0002), linear-gradient(#fff0,#fff);
 }
-.dot.active{background:var(--primary)}
+.pager{display:flex; justify-content:space-around; gap:6px}
+.pager button{
+  background:none; border:none; padding:6px; color:#fff; opacity:.6; cursor:pointer;
+}
+.pager button.active{opacity:1}
+.pager button svg{width:24px; height:24px; display:block;}
 
 @media (max-width:560px){
   .grid{grid-template-columns:1fr}
