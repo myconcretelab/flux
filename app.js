@@ -300,8 +300,12 @@
   });
   audio.addEventListener('pause', ()=>{
     playPause.textContent = 'Lecture';
+    setMediaSession();
   });
-  audio.addEventListener('ended', ()=>{ playPause.textContent = 'Lecture'; });
+  audio.addEventListener('ended', ()=>{ 
+    playPause.textContent = 'Lecture';
+    setMediaSession();
+  });
 
   audio.addEventListener('error', ()=>{
     // Erreur potentielle de “mixed content” ou CORS
@@ -358,6 +362,8 @@
     if (!('mediaSession' in navigator)) return;
     const cur = getCurrent();
     if (!cur) return;
+
+    navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing';
 
     if (settings.showLockInfo){
       navigator.mediaSession.metadata = new MediaMetadata({
