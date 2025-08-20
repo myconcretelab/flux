@@ -19,6 +19,7 @@
   const showLockInfo = $('#showLockInfo');
   const logBox = $('#logBox');
   const logEntries = $('#logEntries');
+  const toggleLog = $('#toggleLog');
 
   const streamList = $('#streamList');
   const addQuick = $('#addQuick');
@@ -80,6 +81,11 @@
   compactList.checked = !!settings.compactList;
   haptics.checked = !!settings.haptics;
   document.body.classList.toggle('compact', settings.compactList);
+
+  toggleLog.addEventListener('click', () => {
+    logBox.hidden = !logBox.hidden;
+    toggleLog.textContent = logBox.hidden ? 'Afficher le journal' : 'Masquer le journal';
+  });
 
   function addLog(msg, obj){
     const time = new Date().toLocaleTimeString();

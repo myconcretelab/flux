@@ -121,8 +121,9 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 
 .player-area{display:flex; gap:16px; flex-wrap:wrap}
 .player-area .player-card{flex:1 1 300px}
-.log-box{flex:1 1 200px; font-size:12px; max-height:150px; overflow:auto}
+.log-box{flex:1 1 200px; font-size:12px; max-height:150px; overflow:auto; overflow-wrap:anywhere}
 .log-box h2{margin:0 0 8px; font-size:14px}
+.log-box pre{white-space:pre-wrap}
 .log-entries{display:flex; flex-direction:column; gap:4px}
 
 .stream-list, .manage-list{
