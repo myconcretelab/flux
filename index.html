@@ -32,10 +32,6 @@
     </div>
   </header>
 
-  <section id="hero" class="hero">
-    <img id="heroImg" alt="Illustration" />
-  </section>
-
   <main id="slides" class="slides" tabindex="0" aria-label="Panneaux glissables">
     <!-- Slide 1: Lecteur -->
     <section class="slide" aria-labelledby="player-title">
@@ -59,8 +55,8 @@
         </div>
 
         <div class="extras">
-          <label><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
-          <label><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
+          <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
+          <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
           <div class="sleep">
             Minuteur sommeil (min) :
             <input id="sleepMinutes" type="number" min="0" max="240" step="5" value="0" />
@@ -99,9 +95,7 @@
               <option value="aac">AAC</option>
             </select>
           </label>
-          <label>Favori
-            <input id="streamFav" type="checkbox" />
-          </label>
+          <label class="mui-switch"><input id="streamFav" type="checkbox" /> Favori</label>
           <label>Notes
             <input id="streamNotes" type="text" placeholder="bitrate, origine..." />
           </label>
@@ -134,7 +128,7 @@
 
       <div class="card">
         <h2>Réseau & compatibilité iOS</h2>
-        <label><input type="checkbox" id="tryHttp"> Essayer le HTTP si HTTPS échoue</label>
+        <label class="mui-switch"><input type="checkbox" id="tryHttp"> Essayer le HTTP si HTTPS échoue</label>
         <p class="muted">
           Sur une page <strong>HTTPS</strong>, les flux <code>http://</code> sont bloqués par iOS.
           Servez cette appli en <strong>HTTP</strong> (réseau local) pour lire ces flux, ou utilisez le bouton
@@ -144,8 +138,8 @@
 
       <div class="card">
         <h2>Interface</h2>
-        <label><input type="checkbox" id="compactList"> Liste compacte</label>
-        <label><input type="checkbox" id="haptics"> Retour haptique (si dispo)</label>
+        <label class="mui-switch"><input type="checkbox" id="compactList"> Liste compacte</label>
+        <label class="mui-switch"><input type="checkbox" id="haptics"> Retour haptique (si dispo)</label>
       </div>
 
       <div class="card">

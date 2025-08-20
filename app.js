@@ -8,8 +8,6 @@
   const slides = $('#slides');
   const tabs = { player: $('#toPlayer'), lib: $('#toLibrary'), settings: $('#toSettings') };
   const pagerBtns = Object.values(tabs);
-  const hero = $('#hero');
-  const heroImg = $('#heroImg');
 
   const audio = $('#audio');
   const nowName = $('#nowName');
@@ -96,16 +94,6 @@
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
   tabs.lib.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth, behavior:'smooth'}));
   tabs.settings.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth*2, behavior:'smooth'}));
-
-  function updateHero(){
-    const hour = new Date().getHours();
-    let mode = 'day';
-    if (hour < 6 || hour >= 18) mode = 'night';
-    else if (hour < 12) mode = 'morning';
-    hero.classList.add(mode);
-    heroImg.src = `images/${mode}.svg`;
-  }
-  updateHero();
 
   // ------- Haptics (soft) -------
   function buzz(){
@@ -294,8 +282,12 @@
   volume.addEventListener('input', ()=> audio.volume = Number(volume.value));
 
   playPause.addEventListener('click', ()=>{
-    if (audio.paused) audio.play().catch(showPlayError);
-    else audio.pause();
+    if (audio.paused){
+      if (audio.ended || audio.readyState === 0) audio.load();
+      audio.play().catch(showPlayError);
+    } else {
+      audio.pause();
+    }
   });
   stopBtn.addEventListener('click', ()=>{
     audio.pause();
