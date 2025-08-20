@@ -145,7 +145,7 @@
       .sort((a,b)=> (b.favorite - a.favorite) || a.name.localeCompare(b.name))
       .forEach(s=>{
         const li = document.createElement('li');
-        li.className = 'item';
+        li.className = 'item' + (s.id===lastId?' current':'');
         li.innerHTML = `
           <div class="meta">
             <div class="name">${escapeHTML(s.name)} ${s.favorite?'<span class="badge">★</span>':''}</div>
@@ -365,6 +365,7 @@
     const s = streams.find(x=>x.id===id);
     if (!s) return;
     lastId = id; save('lastId_v1', lastId);
+    renderLists();
     nowName.textContent = s.name;
     nowUrl.textContent = s.url;
 
