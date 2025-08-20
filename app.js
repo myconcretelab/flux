@@ -12,6 +12,7 @@
   const audio = $('#audio');
   const nowName = $('#nowName');
   const nowUrl = $('#nowUrl');
+  const nowMeta = $('#nowMeta');
   const playPause = $('#playPause');
   const volume = $('#volume');
   const autoResume = $('#autoResume');
@@ -51,7 +52,7 @@
   const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
   // App state
-  let streams = load('streams_v1', []);
+  let streams = [];
   let settings = load('settings_v1', {
     autoResume: true,
     showLockInfo: true,
@@ -73,18 +74,25 @@
   haptics.checked = !!settings.haptics;
   document.body.classList.toggle('compact', settings.compactList);
 
-  // Ensure demo data if empty
-  if (streams.length === 0) {
-    seedDemoData();
-  }
+  // Chargera les flux depuis le serveur plus tard
 
   // ------- Storage helpers -------
   function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
   function load(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch{ return fallback; } }
 
+  async function saveStreams(){
+    try{
+      await fetch('/api/streams', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({streams})
+      });
+    }catch(err){ console.error('Sauvegarde des flux échouée', err); }
+  }
+
   function persistAll(){
-    save('streams_v1', streams);
     save('settings_v1', settings);
+    saveStreams();
   }
 
   // ------- UI: slides / dots -------
@@ -325,6 +333,30 @@
   });
 
   // ------- Audio / Playback -------
+  let metaTimer = null;
+
+  async function refreshMetadata(){
+    const cur = getCurrent();
+    if (!cur) return;
+    try{
+      const info = await fetch('/api/metadata?url='+encodeURIComponent(cur.url)).then(r=>r.json());
+      nowMeta.textContent = info.StreamTitle || info.title || info['icy-name'] || '';
+    }catch(err){
+      nowMeta.textContent = '';
+    }
+  }
+
+  function startMetadata(){
+    stopMetadata();
+    refreshMetadata();
+    metaTimer = setInterval(refreshMetadata, 30000);
+  }
+
+  function stopMetadata(){
+    if (metaTimer){ clearInterval(metaTimer); metaTimer=null; }
+    nowMeta.textContent = '';
+  }
+
   volume.addEventListener('input', ()=> audio.volume = Number(volume.value));
 
   playPause.addEventListener('click', ()=>{
@@ -341,18 +373,21 @@
     playPause.textContent = '■';
     playPause.setAttribute('aria-label','Stop');
     setMediaSession();
+    startMetadata();
     renderLists();
   });
   audio.addEventListener('pause', ()=>{
     playPause.textContent = '▶︎';
     playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
+    stopMetadata();
     renderLists();
   });
   audio.addEventListener('ended', ()=>{
     playPause.textContent = '▶︎';
     playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
+    stopMetadata();
     renderLists();
   });
 
@@ -366,6 +401,7 @@
     if (cur && /^http:\/\//i.test(cur.url)){
       extra = '\nAstuce: servez cette page en HTTP (pas HTTPS) pour autoriser les flux http:// sur iOS, ou utilisez “Ouvrir dans Safari”.';
     }
+    stopMetadata();
     alert(msg + extra);
   });
 
@@ -380,6 +416,7 @@
     renderLists();
     nowName.textContent = s.name;
     nowUrl.textContent = s.url;
+    nowMeta.textContent = '';
 
     let src = s.url;
     // Si param activé et url http (ou si https échoue, on proposera Safari)
@@ -471,7 +508,11 @@
     if (confirm('Tout réinitialiser (flux + réglages) ?')){
       localStorage.clear();
       streams = []; settings = { autoResume:true, showLockInfo:true, tryHttp:false, compactList:false, haptics:true };
-      lastId = null; renderLists(); clearForm(); location.reload();
+      lastId = null;
+      saveStreams();
+      renderLists();
+      clearForm();
+      location.reload();
     }
   });
 
@@ -493,7 +534,22 @@
   }
 
   // Auto-resume last
-  window.addEventListener('load', ()=>{
+  async function loadStreams(){
+    try{
+      const res = await fetch('/api/streams');
+      streams = await res.json();
+      if (!Array.isArray(streams)) streams = [];
+      if (streams.length === 0){
+        seedDemoData();
+        await saveStreams();
+      }
+    }catch(err){
+      console.error('Chargement des flux impossible', err);
+    }
+  }
+
+  window.addEventListener('load', async ()=>{
+    await loadStreams();
     renderLists();
     snapIndex();
     if (settings.autoResume && lastId){

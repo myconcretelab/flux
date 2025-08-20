@@ -1,6 +1,7 @@
 # Flux
 
-Application web statique permettant de gérer et d'écouter des flux audio.
+Application web permettant de gérer et d'écouter des flux audio.
+Un serveur Node.js expose les flux et les métadonnées de lecture via une API.
 L'interface se compose de trois panneaux glissables :
 
 1. **Lecteur** – contrôle de la lecture en cours.
@@ -19,14 +20,19 @@ L'interface se compose de trois panneaux glissables :
 
 ## Utilisation
 
-Aucune installation n'est requise. Ouvrez simplement le fichier `index.html`
-dans votre navigateur pour lancer l'application.
-
-Pour lancer un petit serveur de développement local avec Node.js :
+Installez les dépendances puis lancez le serveur :
 
 ```bash
-npx http-server .
+npm install
+npm start
 ```
+
+Le serveur sauvegarde les flux dans `streams.json` (ignoré par Git) et
+fournit les routes :
+
+- `GET /api/streams` – liste des flux enregistrés.
+- `PUT /api/streams` – remplacement de la liste des flux.
+- `GET /api/metadata?url=...` – informations ICY sur le flux en cours.
 
 ## Contribution
 
