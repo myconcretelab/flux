@@ -70,6 +70,8 @@ h2{font-size:16px; margin:0 0 12px}
 
 label input[type="text"], label input[type="url"], label select, input[type="number"]{
   padding:12px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px;
+  -webkit-user-select:text;
+  user-select:text;
 }
 
 .btn{

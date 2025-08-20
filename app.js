@@ -97,8 +97,16 @@
     prevIdx = idx;
   }
   slides.addEventListener('scroll', () => { window.requestAnimationFrame(snapIndex); });
+  slides.addEventListener('touchend', () => {
+    if (Math.round(slides.scrollLeft / slides.clientWidth) === 1) {
+      checkClipboard();
+    }
+  });
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
-  tabs.lib.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth, behavior:'smooth'}));
+  tabs.lib.addEventListener('click', () => {
+    slides.scrollTo({left:slides.clientWidth, behavior:'smooth'});
+    checkClipboard();
+  });
   tabs.settings.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth*2, behavior:'smooth'}));
 
   async function checkClipboard(){
