@@ -1,6 +1,6 @@
-/* StreamDeck Lite – v1.0.0 */
+/* StreamDeck Lite – v1.1.0 (SSE ready) */
 (() => {
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const els = sel => document.querySelectorAll(sel);
   const $ = sel => document.querySelector(sel);
 
@@ -31,7 +31,6 @@
   const fFmt = $('#streamFormat');
   const fFav = $('#streamFav');
   const fNotes = $('#streamNotes');
-  const saveStream = $('#saveStream');
   const deleteStream = $('#deleteStream');
   const resetFormBtn = $('#resetForm');
   const manageList = $('#manageList');
@@ -60,11 +59,17 @@
     showLockInfo: true,
     tryHttp: false,
     compactList: false,
-    haptics: true
+    haptics: true,
+    useSSE: true // NEW: utilise l’endpoint SSE par défaut
   });
   let lastId = load('lastId_v1', null);
   let sleepTimer = null;
   let sleepETA = 0;
+
+  // SSE / Polling state
+  let metaTimer = null;      // interval de polling
+  let es = null;             // EventSource courant
+  let currentMeta = '';      // dernière meta affichée
 
   appVersion.textContent = VERSION;
 
@@ -76,11 +81,15 @@
   haptics.checked = !!settings.haptics;
   document.body.classList.toggle('compact', settings.compactList);
 
-  // Chargera les flux depuis le serveur plus tard
-
-  function addLog(msg){
+  function addLog(msg, obj){
+    const time = new Date().toLocaleTimeString();
     const div = document.createElement('div');
-    div.textContent = msg;
+    div.textContent = `[${time}] ${msg}`;
+    if (obj) {
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(obj, null, 2);
+      div.appendChild(pre);
+    }
     logEntries.appendChild(div);
     logBox.scrollTop = logBox.scrollHeight;
   }
@@ -115,14 +124,6 @@
     prevIdx = idx;
   }
   slides.addEventListener('scroll', () => { window.requestAnimationFrame(snapIndex); });
-  /*
-  // semble creer partout la pastille paste de ios
-  slides.addEventListener('touchend', () => {
-    if (Math.round(slides.scrollLeft / slides.clientWidth) === 1) {
-      checkClipboard();
-    }
-  });
-  */
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
   tabs.lib.addEventListener('click', () => {
     slides.scrollTo({left:slides.clientWidth, behavior:'smooth'});
@@ -276,7 +277,6 @@
       streams.push(data);
     }
     persistAll(); renderLists(); buzz();
-    // rester sur place, mais réinitialiser le formulaire
     clearForm();
   });
 
@@ -293,13 +293,11 @@
   });
 
   addQuick.addEventListener('click', ()=>{
-    // préremplir avec FIP
     clearForm();
     fName.value = 'FIP hifi';
     fUrl.value = 'http://icecast.radiofrance.fr/fip-hifi.aac';
     fFmt.value = 'aac';
     fFav.checked = true;
-    // basculer sur l’onglet gestion pour enregistrer/éditer
     slides.scrollTo({left: slides.clientWidth, behavior: 'smooth'});
   });
 
@@ -321,7 +319,6 @@
     try{
       const data = JSON.parse(text);
       if (!Array.isArray(data.streams)) throw new Error('Format inattendu');
-      // simple merge (évite doublons par nom+url)
       for (const s of data.streams){
         if (!s.name || !s.url) continue;
         const hit = streams.find(x=>x.name===s.name && x.url===s.url);
@@ -341,28 +338,18 @@
     }
   });
 
-  // ------- Audio / Playback -------
-  let metaTimer = null;
-
-  async function refreshMetadata(){
+  // ------- Metadata: SSE + fallback polling -------
+  async function refreshMetadataOnce(){
     const cur = getCurrent();
     if (!cur) return;
-    addLog("Requête d'informations pour " + cur.name);
+    const q = new URLSearchParams({
+      url: cur.url,
+      forceHttp: String(!!settings.tryHttp)
+    });
+    addLog("Requête d'informations (one-shot) pour " + cur.name);
     try{
-      const info = await fetch('/api/metadata?url='+encodeURIComponent(cur.url)).then(r=>r.json());
-      if (info.error){
-        nowMeta.textContent = info.error;
-        addLog('Erreur du serveur : ' + info.error);
-      } else {
-        const meta = info.StreamTitle || info.title || info['icy-name'];
-        if (meta){
-          nowMeta.textContent = meta;
-          addLog('Informations reçues : ' + meta);
-        } else {
-          nowMeta.textContent = 'aucune informations trouve';
-          addLog('Aucune information trouvée');
-        }
-      }
+      const info = await fetch('/api/metadata?' + q.toString()).then(r=>r.json());
+      handleMetadataResponse(info);
     }catch(err){
       const msg = err?.message || 'erreur';
       nowMeta.textContent = msg;
@@ -370,17 +357,89 @@
     }
   }
 
-  function startMetadata(){
-    stopMetadata();
-    refreshMetadata();
-    metaTimer = setInterval(refreshMetadata, 30000);
+  function handleMetadataResponse(info){
+    if (info.ok) {
+      const meta = info.StreamTitle || info.title || info['icy-name'];
+      if (meta){
+        if (meta !== currentMeta) {
+          currentMeta = meta;
+          nowMeta.textContent = meta;
+          addLog('Meta (one-shot) : ' + meta, info);
+        }
+      } else {
+        nowMeta.textContent = 'Aucune information trouvée';
+        addLog('Aucune information trouvée (one-shot)', info);
+      }
+    } else {
+      // Diagnostic lisible
+      nowMeta.textContent = 'Aucune info (diag dans le journal)';
+      addLog('Diag (one-shot)', info);
+    }
   }
 
-  function stopMetadata(){
+  function startPolling(){
+    stopPolling();
+    refreshMetadataOnce();
+    metaTimer = setInterval(refreshMetadataOnce, 30000);
+  }
+  function stopPolling(){
     if (metaTimer){ clearInterval(metaTimer); metaTimer=null; }
-    nowMeta.textContent = '';
   }
 
+  function startSSE(){
+    stopSSE(); // au cas où
+    const cur = getCurrent();
+    if (!cur) return;
+
+    const q = new URLSearchParams({
+      url: cur.url,
+      forceHttp: String(!!settings.tryHttp)
+    });
+    const sseUrl = '/api/metadata/live?' + q.toString();
+
+    addLog('Connexion SSE : ' + sseUrl);
+    es = new EventSource(sseUrl);
+
+    es.addEventListener('status', e => {
+      const data = safeJSON(e.data);
+      addLog('SSE status', data);
+      // Affiche une info courte si rien encore
+      if (!currentMeta && data?.reason) {
+        nowMeta.textContent = '…';
+      }
+    });
+
+    es.addEventListener('metadata', e => {
+      const data = safeJSON(e.data);
+      const meta = data?.StreamTitle || data?.title || data?.['icy-name'];
+      if (meta && meta !== currentMeta){
+        currentMeta = meta;
+        nowMeta.textContent = meta;
+        addLog('SSE metadata : ' + meta, data);
+      }
+    });
+
+    es.addEventListener('end', _e => {
+      addLog('SSE terminé');
+      stopSSE();
+      // Option : basculer automatiquement en polling si le flux coupe
+      startPolling();
+    });
+
+    es.onerror = (_e) => {
+      addLog('SSE erreur (bascule en polling)');
+      stopSSE();
+      startPolling();
+    };
+  }
+
+  function stopSSE(){
+    if (es){ try{ es.close(); }catch{} es=null; }
+  }
+
+  function safeJSON(s){ try{ return JSON.parse(s); }catch{ return null; } }
+
+  // ------- Audio / Playback -------
   volume.addEventListener('input', ()=> audio.volume = Number(volume.value));
 
   playPause.addEventListener('click', ()=>{
@@ -397,21 +456,30 @@
     playPause.textContent = '■';
     playPause.setAttribute('aria-label','Stop');
     setMediaSession();
-    startMetadata();
+    currentMeta = '';
+    nowMeta.textContent = '';
+    // Métadonnées live
+    if (settings.useSSE){
+      startSSE();
+    } else {
+      startPolling();
+    }
     renderLists();
   });
   audio.addEventListener('pause', ()=>{
     playPause.textContent = '▶︎';
     playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
-    stopMetadata();
+    stopSSE();
+    stopPolling();
     renderLists();
   });
   audio.addEventListener('ended', ()=>{
     playPause.textContent = '▶︎';
     playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
-    stopMetadata();
+    stopSSE();
+    stopPolling();
     renderLists();
   });
 
@@ -425,7 +493,8 @@
     if (cur && /^http:\/\//i.test(cur.url)){
       extra = '\nAstuce: servez cette page en HTTP (pas HTTPS) pour autoriser les flux http:// sur iOS, ou utilisez “Ouvrir dans Safari”.';
     }
-    stopMetadata();
+    stopSSE();
+    stopPolling();
     alert(msg + extra);
   });
 
@@ -443,22 +512,20 @@
     nowName.textContent = s.name;
     nowUrl.textContent = s.url;
     nowMeta.textContent = '';
+    currentMeta = '';
 
     let src = s.url;
-    // Si param activé et url http (ou si https échoue, on proposera Safari)
     if (settings.tryHttp && /^https:\/\//i.test(src)){
       src = 'http:' + src.slice(6);
     }
 
-    audio.src = src; // laisse le navigateur choisir le décodage
+    audio.src = src;
     playPause.disabled = false;
 
-    // iOS requiert une interaction utilisateur préalable : ici le bouton déclenche
     audio.play().then(()=>{
       buzz();
       setMediaSession();
     }).catch(err=>{
-      // si bloqué, proposer ouverture dans Safari
       if (/NotAllowedError|denied/i.test(err?.name || '')){
         alert('iOS a besoin d’une interaction. Appuyez à nouveau sur Lecture.');
       } else {
@@ -469,7 +536,7 @@
 
   function getCurrent(){ return streams.find(s=>s.id===lastId) || null; }
 
-  // ------- Media Session (verrou/centre de contrôle) -------
+  // ------- Media Session -------
   function setMediaSession(){
     if (!('mediaSession' in navigator)) return;
     const cur = getCurrent();
@@ -533,7 +600,7 @@
   nukeAll.addEventListener('click', ()=>{
     if (confirm('Tout réinitialiser (flux + réglages) ?')){
       localStorage.clear();
-      streams = []; settings = { autoResume:true, showLockInfo:true, tryHttp:false, compactList:false, haptics:true };
+      streams = []; settings = { autoResume:true, showLockInfo:true, tryHttp:false, compactList:false, haptics:true, useSSE:true };
       lastId = null;
       saveStreams();
       renderLists();
@@ -579,7 +646,6 @@
     renderLists();
     snapIndex();
     if (settings.autoResume && lastId){
-      // ne lance pas tout seul (iOS), mais prépare
       const cur = getCurrent();
       if (cur){
         nowName.textContent = cur.name;
