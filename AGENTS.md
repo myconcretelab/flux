@@ -2,6 +2,6 @@
 
 Ce dépôt contient une application web statique.
 
-- Exécutez `npm test` pour vérifier votre travail lorsqu'il y a des tests disponibles.
+- Il n'y a ni étape d'installation ni suite de tests.
 - Rédigez les messages de commit en français.
 - Résumez brièvement les modifications dans la description de la Pull Request.

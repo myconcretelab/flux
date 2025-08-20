@@ -4,7 +4,7 @@
   --muted:#6b7280;
   --card:#f7f8fa;
   --border:#e5e7eb;
-  --primary:#007aff;
+  --primary:#0a0e27;
   --danger:#ef4444;
   --shadow:0 6px 18px rgba(0,0,0,.08);
   --radius:16px;
@@ -127,7 +127,7 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .item .name{font-weight:600}
 .item .sub{font-size:12px; color:var(--muted)}
 .item .actions{display:flex; gap:6px}
-.badge{font-size:11px; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3}
+.badge{font-size:11px; padding:2px 8px; border-radius:999px; background:#0a0e27; color:#fff}
 
 .manage-list .item .left{display:flex; align-items:center; gap:10px}
 .drag-btn, .fav-btn, .edit-btn, .del-btn, .up-btn, .down-btn, .play-btn, .open-btn{
