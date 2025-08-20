@@ -13,7 +13,6 @@
   const nowName = $('#nowName');
   const nowUrl = $('#nowUrl');
   const playPause = $('#playPause');
-  const stopBtn = $('#stopBtn');
   const volume = $('#volume');
   const autoResume = $('#autoResume');
   const showLockInfo = $('#showLockInfo');
@@ -48,6 +47,8 @@
   const sleepMinutes = $('#sleepMinutes');
   const sleepStart = $('#sleepStart');
   const sleepLeft = $('#sleepLeft');
+
+  const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
   // App state
   let streams = load('streams_v1', []);
@@ -145,6 +146,7 @@
       .sort((a,b)=> (b.favorite - a.favorite) || a.name.localeCompare(b.name))
       .forEach(s=>{
         const li = document.createElement('li');
+        const playing = (s.id===lastId && !audio.paused);
         li.className = 'item' + (s.id===lastId?' current':'');
         li.innerHTML = `
           <div class="meta">
@@ -152,13 +154,21 @@
             <div class="sub">${escapeHTML(s.url)}</div>
           </div>
           <div class="actions">
-            <button class="play-btn" title="Lire">▶︎</button>
-            <button class="open-btn" title="Ouvrir">${settings.tryHttp?'Safari':''}</button>
+            ${playing?'<span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>':''}
+            <button class="play-btn" title="${playing?'Stop':'Lire'}" aria-label="${playing?'Stop':'Lire'}">${playing?'■':'▶︎'}</button>
+            <button class="open-btn" title="Ouvrir">${linkIcon}</button>
           </div>
         `;
-        li.querySelector('.play-btn').addEventListener('click', ()=>{ selectAndPlay(s.id); });
+        const btn = li.querySelector('.play-btn');
+        btn.addEventListener('click', ()=>{
+          if (s.id===lastId && !audio.paused){
+            audio.pause();
+            audio.currentTime = 0;
+          } else {
+            selectAndPlay(s.id);
+          }
+        });
         li.querySelector('.open-btn').addEventListener('click', ()=>{
-          // ouvrir directement (utile si http bloqué)
           window.location.href = s.url;
         });
         streamList.appendChild(li);
@@ -323,25 +333,27 @@
       audio.play().catch(showPlayError);
     } else {
       audio.pause();
+      audio.currentTime = 0;
     }
-  });
-  stopBtn.addEventListener('click', ()=>{
-    audio.pause();
-    audio.currentTime = 0;
   });
 
   audio.addEventListener('play', ()=>{
-    playPause.textContent = 'Pause';
-    stopBtn.disabled = false;
+    playPause.textContent = '■';
+    playPause.setAttribute('aria-label','Stop');
     setMediaSession();
+    renderLists();
   });
   audio.addEventListener('pause', ()=>{
-    playPause.textContent = 'Lecture';
+    playPause.textContent = '▶︎';
+    playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
+    renderLists();
   });
-  audio.addEventListener('ended', ()=>{ 
-    playPause.textContent = 'Lecture';
+  audio.addEventListener('ended', ()=>{
+    playPause.textContent = '▶︎';
+    playPause.setAttribute('aria-label','Lecture');
     setMediaSession();
+    renderLists();
   });
 
   audio.addEventListener('error', ()=>{
@@ -377,7 +389,6 @@
 
     audio.src = src; // laisse le navigateur choisir le décodage
     playPause.disabled = false;
-    stopBtn.disabled = false;
 
     // iOS requiert une interaction utilisateur préalable : ici le bouton déclenche
     audio.play().then(()=>{
@@ -493,7 +504,6 @@
         nowUrl.textContent = cur.url;
         audio.src = cur.url;
         playPause.disabled = false;
-        stopBtn.disabled = false;
       }
     }
   });
