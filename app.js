@@ -86,14 +86,29 @@
   }
 
   // ------- UI: slides / dots -------
+  let prevIdx = 0;
   function snapIndex(){
     const idx = Math.round(slides.scrollLeft / slides.clientWidth);
     pagerBtns.forEach((b,i)=>b.classList.toggle('active', i===idx));
+    if (idx !== prevIdx && idx === 1) {
+      checkClipboard();
+    }
+    prevIdx = idx;
   }
   slides.addEventListener('scroll', () => { window.requestAnimationFrame(snapIndex); });
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
   tabs.lib.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth, behavior:'smooth'}));
   tabs.settings.addEventListener('click', ()=>slides.scrollTo({left:slides.clientWidth*2, behavior:'smooth'}));
+
+  async function checkClipboard(){
+    if (!navigator.clipboard) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && /^https?:\/\/\S+/i.test(text) && !fUrl.value) {
+        fUrl.value = text.trim();
+      }
+    } catch {}
+  }
 
   // ------- Haptics (soft) -------
   function buzz(){
