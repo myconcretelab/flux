@@ -86,7 +86,10 @@
             <input id="streamName" type="text" placeholder="ex. FIP hifi" required />
           </label>
           <label>URL
-            <input id="streamUrl" type="url" placeholder="http(s)://..." required />
+            <div class="row url-row">
+              <input id="streamUrl" type="url" placeholder="http(s)://..." required />
+              <button type="button" id="pasteUrl" class="btn small">Coller</button>
+            </div>
           </label>
           <label>Format (optionnel)
             <select id="streamFormat">

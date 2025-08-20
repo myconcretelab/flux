@@ -66,6 +66,7 @@ h2{font-size:16px; margin:0 0 12px}
 }
 .grid label{display:flex; flex-direction:column; gap:6px}
 .grid .row{grid-column:1/-1}
+.url-row input{flex:1}
 
 label input[type="text"], label input[type="url"], label select, input[type="number"]{
   padding:12px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px;
