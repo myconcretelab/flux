@@ -25,6 +25,7 @@
   const fId = $('#streamId');
   const fName = $('#streamName');
   const fUrl = $('#streamUrl');
+  const pasteUrl = $('#pasteUrl');
   const fFmt = $('#streamFormat');
   const fFav = $('#streamFav');
   const fNotes = $('#streamNotes');
@@ -103,12 +104,21 @@
   async function checkClipboard(){
     if (!navigator.clipboard) return;
     try {
-      const text = await navigator.clipboard.readText();
+      let text = await navigator.clipboard.readText();
+      text = text.trim();
       if (text && /^https?:\/\/\S+/i.test(text) && !fUrl.value) {
-        fUrl.value = text.trim();
+        fUrl.value = text;
       }
     } catch {}
   }
+
+  pasteUrl?.addEventListener('click', async ()=>{
+    if (!navigator.clipboard) return;
+    try{
+      const text = (await navigator.clipboard.readText()).trim();
+      if (text) fUrl.value = text;
+    }catch{}
+  });
 
   // ------- Haptics (soft) -------
   function buzz(){
