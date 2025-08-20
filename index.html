@@ -25,7 +25,7 @@
       <!-- petit logo pour une belle capture d'icône -->
       <svg width="24" height="24" viewBox="0 0 128 128" aria-hidden="true">
         <rect rx="24" width="128" height="128" fill="#f4f6f8"></rect>
-        <circle cx="64" cy="64" r="36" fill="#0a0e27"></circle>
+        <circle cx="64" cy="64" r="36" fill="var(--primary)"></circle>
         <path d="M82 64c0 9.94-8.06 18-18 18s-18-8.06-18-18 8.06-18 18-18 18 8.06 18 18z" fill="#fff" opacity=".9"></path>
       </svg>
       <span>StreamDeck</span>
@@ -46,8 +46,8 @@
         <audio id="audio" preload="none" playsinline></audio>
 
         <div class="controls">
-          <button id="playPause" class="btn primary" disabled>Lecture</button>
-          <button id="stopBtn" class="btn" disabled>Stop</button>
+          <button id="playPause" class="btn primary" disabled aria-label="Lecture">▶︎</button>
+          <button id="stopBtn" class="btn" disabled aria-label="Stop">■</button>
           <label class="vol">
             Volume
             <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
