@@ -97,11 +97,14 @@
     prevIdx = idx;
   }
   slides.addEventListener('scroll', () => { window.requestAnimationFrame(snapIndex); });
+  /*
+  // semble creer partout la pastille paste de ios
   slides.addEventListener('touchend', () => {
     if (Math.round(slides.scrollLeft / slides.clientWidth) === 1) {
       checkClipboard();
     }
   });
+  */
   tabs.player.addEventListener('click', ()=>slides.scrollTo({left:0, behavior:'smooth'}));
   tabs.lib.addEventListener('click', () => {
     slides.scrollTo({left:slides.clientWidth, behavior:'smooth'});
