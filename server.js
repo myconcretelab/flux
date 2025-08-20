@@ -198,7 +198,7 @@ app.get('/api/metadata/live', async (req, res) => {
     'Accept': '*/*',
   };
 
-  const reqIcy = getStreamWithRedirects(
+  const streamReq = getStreamWithRedirects(
     url,
     { headers },
     icyRes => {
@@ -214,7 +214,7 @@ app.get('/api/metadata/live', async (req, res) => {
       send('status', { connected: true, icyMeta: true, redirectedTo: finalUrl });
       let timer = setTimeout(() => {
         send('status', { connected: true, icyMeta: true, timedOut: true, redirectedTo: finalUrl, reason: 'timeout-first-metadata' });
-        // on ne ferme pas la connexion; on peut garder l’écoute, mais on peut aussi fallback une fois :
+        // on peut tenter un fallback informatif sans fermer la SSE
         doFallback(finalUrl).then(x => send('status', x)).catch(()=>{});
       }, 25000);
 
@@ -231,15 +231,15 @@ app.get('/api/metadata/live', async (req, res) => {
         end();
       });
 
-      req.on('close', () => { clearTimeout(timer); icyRes.destroy(); end(); });
+      // fermeture côté client (Express)
+      req.on('close', () => { clearTimeout(timer); try { icyRes.destroy(); } catch {} end(); });
+      res.on('close', () => { clearTimeout(timer); try { icyRes.destroy(); } catch {} end(); });
     },
     (err) => {
       send('error', { message: err?.message || 'connect error' });
       end();
     }
   );
-
-  const req = reqIcy; // pour le handler 'close'
 
   async function doFallback(currentUrl) {
     try {
@@ -255,7 +255,6 @@ app.get('/api/metadata/live', async (req, res) => {
 
       if (/\.(aac|aacp)\b/i.test(u.pathname)) {
         const mp3Url = currentUrl.replace(/\.(aac|aacp)\b/i, '.mp3');
-        // essai court one-shot : on ne garde pas la connexion ouverte ici
         try {
           const probe = await probeIcyOnce(mp3Url, 8000);
           if (probe?.StreamTitle) return { fallbackUsed: 'try-mp3', ...probe };
