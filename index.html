@@ -37,32 +37,38 @@
     <section class="slide" aria-labelledby="player-title">
       <h1 id="player-title">Lecteur</h1>
 
-      <div class="player-card card">
-        <div class="now-meta">
-          <div class="title" id="nowName">Aucun flux</div>
-          <div class="url" id="nowUrl">—</div>
-          <div class="meta muted" id="nowMeta"></div>
-        </div>
-
-        <audio id="audio" preload="none" playsinline></audio>
-
-        <div class="controls">
-          <button id="playPause" class="btn primary" disabled aria-label="Lecture">▶︎</button>
-          <label class="vol">
-            Volume
-            <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
-          </label>
-        </div>
-
-        <div class="extras">
-          <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
-          <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
-          <div class="sleep">
-            Minuteur sommeil (min) :
-            <input id="sleepMinutes" type="number" min="0" max="240" step="5" value="0" />
-            <button id="sleepStart" class="btn">Démarrer</button>
-            <span id="sleepLeft" class="muted"></span>
+      <div class="player-area">
+        <div class="player-card card">
+          <div class="now-meta">
+            <div class="title" id="nowName">Aucun flux</div>
+            <div class="url" id="nowUrl">—</div>
+            <div class="meta muted" id="nowMeta"></div>
           </div>
+
+          <audio id="audio" preload="none" playsinline></audio>
+
+          <div class="controls">
+            <button id="playPause" class="btn primary" disabled aria-label="Lecture">▶︎</button>
+            <label class="vol">
+              Volume
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
+            </label>
+          </div>
+
+          <div class="extras">
+            <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
+            <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
+            <div class="sleep">
+              Minuteur sommeil (min) :
+              <input id="sleepMinutes" type="number" min="0" max="240" step="5" value="0" />
+              <button id="sleepStart" class="btn">Démarrer</button>
+              <span id="sleepLeft" class="muted"></span>
+            </div>
+          </div>
+        </div>
+        <div id="logBox" class="card log-box">
+          <h2>Journal</h2>
+          <div id="logEntries" class="log-entries"></div>
         </div>
       </div>
 

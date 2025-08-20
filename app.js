@@ -17,6 +17,8 @@
   const volume = $('#volume');
   const autoResume = $('#autoResume');
   const showLockInfo = $('#showLockInfo');
+  const logBox = $('#logBox');
+  const logEntries = $('#logEntries');
 
   const streamList = $('#streamList');
   const addQuick = $('#addQuick');
@@ -75,6 +77,13 @@
   document.body.classList.toggle('compact', settings.compactList);
 
   // Chargera les flux depuis le serveur plus tard
+
+  function addLog(msg){
+    const div = document.createElement('div');
+    div.textContent = msg;
+    logEntries.appendChild(div);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 
   // ------- Storage helpers -------
   function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -338,11 +347,26 @@
   async function refreshMetadata(){
     const cur = getCurrent();
     if (!cur) return;
+    addLog("Requête d'informations pour " + cur.name);
     try{
       const info = await fetch('/api/metadata?url='+encodeURIComponent(cur.url)).then(r=>r.json());
-      nowMeta.textContent = info.StreamTitle || info.title || info['icy-name'] || '';
+      if (info.error){
+        nowMeta.textContent = info.error;
+        addLog('Erreur du serveur : ' + info.error);
+      } else {
+        const meta = info.StreamTitle || info.title || info['icy-name'];
+        if (meta){
+          nowMeta.textContent = meta;
+          addLog('Informations reçues : ' + meta);
+        } else {
+          nowMeta.textContent = 'aucune informations trouve';
+          addLog('Aucune information trouvée');
+        }
+      }
     }catch(err){
-      nowMeta.textContent = '';
+      const msg = err?.message || 'erreur';
+      nowMeta.textContent = msg;
+      addLog('Erreur de requête : ' + msg);
     }
   }
 
@@ -412,6 +436,8 @@
   function selectAndPlay(id){
     const s = streams.find(x=>x.id===id);
     if (!s) return;
+    logEntries.textContent = '';
+    addLog('Lecture de ' + s.name);
     lastId = id; save('lastId_v1', lastId);
     renderLists();
     nowName.textContent = s.name;

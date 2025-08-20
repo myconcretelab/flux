@@ -119,6 +119,12 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .vol{display:flex; align-items:center; gap:10px}
 .muted{color:var(--muted); font-size:12px}
 
+.player-area{display:flex; gap:16px; flex-wrap:wrap}
+.player-area .player-card{flex:1 1 300px}
+.log-box{flex:1 1 200px; font-size:12px; max-height:150px; overflow:auto}
+.log-box h2{margin:0 0 8px; font-size:14px}
+.log-entries{display:flex; flex-direction:column; gap:4px}
+
 .stream-list, .manage-list{
   list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;
 }
