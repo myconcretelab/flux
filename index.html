@@ -39,6 +39,7 @@
 
       <div class="player-area">
         <div class="player-card card">
+          <button id="toggleLog" class="log-badge" aria-label="Afficher le journal"></button>
           <div class="now-meta">
             <div class="title" id="nowName">Aucun flux</div>
             <div class="url" id="nowUrl">—</div>
@@ -49,24 +50,27 @@
 
           <div class="controls">
             <button id="playPause" class="btn primary" disabled aria-label="Lecture">▶︎</button>
-            <label class="vol">
-              Volume
-              <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
-            </label>
           </div>
 
           <div class="extras">
             <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
             <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
             <div class="sleep">
-              Minuteur sommeil (min) :
-              <input id="sleepMinutes" type="number" min="0" max="240" step="5" value="0" />
-              <button id="sleepStart" class="btn">Démarrer</button>
+              <label for="sleepMinutes">Sleep</label>
+              <input id="sleepMinutes" type="range" min="0" max="90" step="5" value="0" list="sleepMarks" />
+              <datalist id="sleepMarks">
+                <option value="0"></option>
+                <option value="15"></option>
+                <option value="30"></option>
+                <option value="45"></option>
+                <option value="60"></option>
+                <option value="75"></option>
+                <option value="90"></option>
+              </datalist>
               <span id="sleepLeft" class="muted"></span>
             </div>
           </div>
         </div>
-        <button id="toggleLog" class="btn small">Afficher le journal</button>
         <div id="logBox" class="card log-box" hidden>
           <h2>Journal</h2>
           <div id="logEntries" class="log-entries"></div>

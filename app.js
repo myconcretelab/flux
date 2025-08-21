@@ -14,7 +14,6 @@
   const nowUrl = $('#nowUrl');
   const nowMeta = $('#nowMeta');
   const playPause = $('#playPause');
-  const volume = $('#volume');
   const autoResume = $('#autoResume');
   const showLockInfo = $('#showLockInfo');
   const logBox = $('#logBox');
@@ -48,7 +47,6 @@
   const appVersion = $('#appVersion');
 
   const sleepMinutes = $('#sleepMinutes');
-  const sleepStart = $('#sleepStart');
   const sleepLeft = $('#sleepLeft');
 
   const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
@@ -84,7 +82,8 @@
 
   toggleLog.addEventListener('click', () => {
     logBox.hidden = !logBox.hidden;
-    toggleLog.textContent = logBox.hidden ? 'Afficher le journal' : 'Masquer le journal';
+    toggleLog.classList.toggle('on', !logBox.hidden);
+    toggleLog.setAttribute('aria-label', logBox.hidden ? 'Afficher le journal' : 'Masquer le journal');
   });
 
   function addLog(msg, obj){
@@ -446,7 +445,6 @@
   function safeJSON(s){ try{ return JSON.parse(s); }catch{ return null; } }
 
   // ------- Audio / Playback -------
-  volume.addEventListener('input', ()=> audio.volume = Number(volume.value));
 
   playPause.addEventListener('click', ()=>{
     if (audio.paused){
@@ -571,11 +569,11 @@
   }
 
   // ------- Sleep timer -------
-  sleepStart.addEventListener('click', ()=>{
+  sleepMinutes.addEventListener('input', ()=>{
     const mins = Math.max(0, Number(sleepMinutes.value||0));
     if (sleepTimer){ clearInterval(sleepTimer); sleepTimer = null; }
     if (mins===0){
-      sleepLeft.textContent = 'Minuteur désactivé.';
+      sleepLeft.textContent = '';
       return;
     }
     sleepETA = Date.now() + mins*60*1000;
