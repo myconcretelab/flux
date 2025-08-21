@@ -39,7 +39,7 @@
 
       <div class="player-area">
         <div class="player-card card">
-          <button id="toggleLog" class="log-badge" aria-label="Afficher le journal"></button>
+          <button id="toggleLog" class="log-badge" aria-label="Afficher le journal">journal</button>
           <div class="now-meta">
             <div class="title" id="nowName">Aucun flux</div>
             <div class="url" id="nowUrl">—</div>
@@ -53,8 +53,8 @@
           </div>
 
           <div class="extras">
-            <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
-            <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
+            <label class="mui-switch">Reprendre automatiquement le dernier flux <input type="checkbox" id="autoResume"></label>
+            <label class="mui-switch">Afficher titre sur l’écran verrouillé <input type="checkbox" id="showLockInfo"></label>
             <div class="sleep">
               <label for="sleepMinutes">Sleep</label>
               <input id="sleepMinutes" type="range" min="0" max="90" step="5" value="0" list="sleepMarks" />
@@ -74,6 +74,7 @@
         <div id="logBox" class="card log-box" hidden>
           <h2>Journal</h2>
           <div id="logEntries" class="log-entries"></div>
+          <button id="copyLog" class="btn small">Copier</button>
         </div>
       </div>
 
