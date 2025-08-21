@@ -118,12 +118,16 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0}
 .muted{color:var(--muted); font-size:12px}
 
+.extras{display:flex; flex-direction:column; gap:8px; margin-top:16px}
+.extras .mui-switch{width:100%; justify-content:space-between}
+
 .player-area{display:flex; gap:16px; flex-wrap:wrap}
 .player-area .player-card{flex:1 1 300px; position:relative}
 .log-box{flex:1 1 200px; font-size:12px; max-height:150px; overflow:auto; overflow-wrap:anywhere}
 .log-box h2{margin:0 0 8px; font-size:14px}
 .log-box pre{white-space:pre-wrap}
 .log-entries{display:flex; flex-direction:column; gap:4px}
+#copyLog{margin-top:8px}
 
 .stream-list, .manage-list{
   list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;
@@ -142,11 +146,13 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .log-badge{
   position:absolute;
   top:8px; right:8px;
-  width:16px; height:16px;
-  border-radius:50%;
+  border:none;
+  border-radius:999px;
   background:var(--primary);
-  border:none; padding:0;
+  color:#fff;
+  padding:2px 8px;
   cursor:pointer;
+  font-size:11px;
 }
 .log-badge.on{background:#3b82f6}
 

@@ -19,6 +19,7 @@
   const logBox = $('#logBox');
   const logEntries = $('#logEntries');
   const toggleLog = $('#toggleLog');
+  const copyLog = $('#copyLog');
 
   const streamList = $('#streamList');
   const addQuick = $('#addQuick');
@@ -84,6 +85,12 @@
     logBox.hidden = !logBox.hidden;
     toggleLog.classList.toggle('on', !logBox.hidden);
     toggleLog.setAttribute('aria-label', logBox.hidden ? 'Afficher le journal' : 'Masquer le journal');
+  });
+
+  copyLog?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(logEntries.textContent || '');
+    } catch {}
   });
 
   function addLog(msg, obj){
