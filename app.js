@@ -89,7 +89,20 @@
   });
 
   copyLog?.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(logEntries.textContent || ''); } catch {}
+    const txt = logEntries.textContent || '';
+    try {
+      await navigator.clipboard.writeText(txt);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try { document.execCommand('copy'); } catch {}
+      ta.remove();
+    }
   });
 
   function addLog(msg, obj){
