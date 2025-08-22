@@ -1,4 +1,4 @@
-/* StreamDeck Lite – v1.1.0 (SSE ready) */
+/* StreamDeck Lite – v1.1.0 (SSE ready + patches) */
 (() => {
   const VERSION = '1.1.0';
   const els = sel => document.querySelectorAll(sel);
@@ -60,7 +60,7 @@
     tryHttp: false,
     compactList: false,
     haptics: true,
-    useSSE: true // NEW: utilise l’endpoint SSE par défaut
+    useSSE: true // utilise l’endpoint SSE par défaut
   });
   let lastId = load('lastId_v1', null);
   let sleepTimer = null;
@@ -70,6 +70,7 @@
   let metaTimer = null;      // interval de polling
   let es = null;             // EventSource courant
   let currentMeta = '';      // dernière meta affichée
+  let lastShownAt = 0;       // PATCH: anti-spam timestamp
 
   appVersion.textContent = VERSION;
 
@@ -88,9 +89,7 @@
   });
 
   copyLog?.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(logEntries.textContent || '');
-    } catch {}
+    try { await navigator.clipboard.writeText(logEntries.textContent || ''); } catch {}
   });
 
   function addLog(msg, obj){
@@ -105,6 +104,9 @@
     logEntries.appendChild(div);
     logBox.scrollTop = logBox.scrollHeight;
   }
+
+  // PATCH: badge de mode
+  function setModeBadge(mode){ addLog('Mode meta : ' + mode); }
 
   // ------- Storage helpers -------
   function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -350,6 +352,29 @@
     }
   });
 
+  // ------- PATCHS METADATA -------
+
+  // Anti-spam affichage metas
+  function showMeta(meta){
+    if (!meta) return;
+    const now = Date.now();
+    if (meta === currentMeta && (now - lastShownAt) < 60_000) return; // ignore doublon < 60s
+    currentMeta = meta;
+    lastShownAt = now;
+    nowMeta.textContent = meta;
+    addLog('Meta : ' + meta);
+  }
+
+  // Récupère waitMs depuis Notes (ex: "wait=120000")
+  function getWaitMsForCurrent(){
+    const cur = getCurrent();
+    if (!cur) return undefined;
+    const m = (cur.notes || '').match(/wait=(\d{5,6})/); // 5–6 chiffres
+    const val = m ? Number(m[1]) : undefined;
+    if (!val) return undefined;
+    return Math.max(5000, Math.min(300000, val));
+  }
+
   // ------- Metadata: SSE + fallback polling -------
   async function refreshMetadataOnce(){
     const cur = getCurrent();
@@ -358,6 +383,9 @@
       url: cur.url,
       forceHttp: String(!!settings.tryHttp)
     });
+    const wait = getWaitMsForCurrent();
+    if (wait) q.set('waitMs', String(wait));
+
     addLog("Requête d'informations (one-shot) pour " + cur.name);
     try{
       const info = await fetch('/api/metadata?' + q.toString()).then(r=>r.json());
@@ -373,17 +401,13 @@
     if (info.ok) {
       const meta = info.StreamTitle || info.title || info['icy-name'];
       if (meta){
-        if (meta !== currentMeta) {
-          currentMeta = meta;
-          nowMeta.textContent = meta;
-          addLog('Meta (one-shot) : ' + meta, info);
-        }
+        showMeta(meta); // PATCH: passe par anti-spam
+        addLog('Diag (one-shot OK)', info);
       } else {
         nowMeta.textContent = 'Aucune information trouvée';
         addLog('Aucune information trouvée (one-shot)', info);
       }
     } else {
-      // Diagnostic lisible
       nowMeta.textContent = 'Aucune info (diag dans le journal)';
       addLog('Diag (one-shot)', info);
     }
@@ -391,6 +415,7 @@
 
   function startPolling(){
     stopPolling();
+    setModeBadge('Polling'); // PATCH: badge
     refreshMetadataOnce();
     metaTimer = setInterval(refreshMetadataOnce, 30000);
   }
@@ -407,34 +432,32 @@
       url: cur.url,
       forceHttp: String(!!settings.tryHttp)
     });
-    const sseUrl = '/api/metadata/live?' + q.toString();
+    const wait = getWaitMsForCurrent();
+    if (wait) q.set('waitMs', String(wait));
 
+    const sseUrl = '/api/metadata/live?' + q.toString();
     addLog('Connexion SSE : ' + sseUrl);
     es = new EventSource(sseUrl);
+    setModeBadge('SSE'); // PATCH: badge
 
     es.addEventListener('status', e => {
       const data = safeJSON(e.data);
       addLog('SSE status', data);
-      // Affiche une info courte si rien encore
-      if (!currentMeta && data?.reason) {
-        nowMeta.textContent = '…';
-      }
+      // Si le fallback serveur fournit déjà un titre, on l’affiche immédiatement
+      if (data?.StreamTitle) showMeta(data.StreamTitle);
+      else if (!currentMeta && data?.reason) nowMeta.textContent = '…';
     });
 
     es.addEventListener('metadata', e => {
       const data = safeJSON(e.data);
       const meta = data?.StreamTitle || data?.title || data?.['icy-name'];
-      if (meta && meta !== currentMeta){
-        currentMeta = meta;
-        nowMeta.textContent = meta;
-        addLog('SSE metadata : ' + meta, data);
-      }
+      if (meta) showMeta(meta);
     });
 
     es.addEventListener('end', _e => {
       addLog('SSE terminé');
       stopSSE();
-      // Option : basculer automatiquement en polling si le flux coupe
+      // bascule auto en polling
       startPolling();
     });
 
@@ -467,7 +490,9 @@
     playPause.textContent = '■';
     playPause.setAttribute('aria-label','Stop');
     setMediaSession();
+    // reset metas (PATCH)
     currentMeta = '';
+    lastShownAt = 0;
     nowMeta.textContent = '';
     // Métadonnées live
     if (settings.useSSE){
@@ -495,7 +520,6 @@
   });
 
   audio.addEventListener('error', ()=>{
-    // Erreur potentielle de “mixed content” ou CORS
     playPause.disabled = false;
     const code = audio.error?.code;
     const msg = (code===4) ? 'Format/URL non supporté, ou accès bloqué.' : 'Erreur de lecture.';
@@ -524,6 +548,7 @@
     nowUrl.textContent = s.url;
     nowMeta.textContent = '';
     currentMeta = '';
+    lastShownAt = 0; // PATCH
 
     let src = s.url;
     if (settings.tryHttp && /^https:\/\//i.test(src)){
