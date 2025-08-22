@@ -14,6 +14,22 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 /* -------------------------- helpers génériques -------------------------- */
+// ---- DEBUG: collecte récursive des clés d’un JSON ----
+function collectKeys(node, prefix = '', out = new Set()) {
+  if (node == null) return out;
+  if (Array.isArray(node)) {
+    for (const it of node) collectKeys(it, prefix, out);
+    return out;
+    }
+  if (typeof node === 'object') {
+    for (const [k, v] of Object.entries(node)) {
+      const full = prefix ? `${prefix}.${k}` : k;
+      out.add(full);
+      collectKeys(v, full, out);
+    }
+  }
+  return out;
+}
 
 function toAbsoluteHttp(url) {
   try { const u = new URL(url); if (u.protocol === 'https:') u.protocol = 'http:'; return u.toString(); }
@@ -273,8 +289,19 @@ async function fetchRadioFranceByPullId(pullId) {
         }
       }
 
-      // ---- Rien trouvé : LOGGONS un extrait du 200 pour voir la structure réelle
-      console.log('[RF] 200 but no usable fields, dump(first 400):', body.slice(0, 400));
+    // Rien d'exploitable trouvé : journaliser les clés + un extrait pour analyse
+    try {
+      const keys = [...collectKeys(j)];
+      console.log('[RF] 200 but no usable fields at', url);
+      console.log('[RF] keys sample:', keys.slice(0, 100)); // évite un log énorme
+      // petit extrait textuel pour se faire une idée des contenus
+      const excerpt = body.slice(0, 400);
+      console.log('[RF] body(first 400):', excerpt);
+    } catch (e) {
+      // si jamais j n’est pas définissable
+      console.log('[RF] debug dump failed:', e?.message);
+    }
+
     } catch (e) {
       console.log('[RF] fetch error for', base, e?.message);
     }
