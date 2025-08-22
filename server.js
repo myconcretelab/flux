@@ -100,23 +100,19 @@ function rfGuessPullId(streamUrl) {
   const host = u.host.toLowerCase();
   const path = u.pathname.toLowerCase();
 
-  // 1) FIP + webradios
-  if (host.includes('fipradio.fr') || path.includes('/fip') || path.includes('/fip-hifi') ) {
+  // cas forts: préfixes explicites
+  if (path.startsWith('/fip-') || path === '/fip' || host.includes('fipradio.fr')) {
+    // sous-canaux FIP
     for (const key of ['fiprock','fipjazz','fipgroove','fipmonde','fipnouveau','fipreggae','fipelectro','fipmetal']) {
-      if (path.includes(key.replace('fip','/fip')) || path.includes(key)) return RF_PULL[key];
+      if (path.includes('/' + key.replace('fip','fip'))) return RF_PULL[key];
     }
-    return RF_PULL.fip;
+    return RF_PULL.fip; // défaut
   }
-  // 2) Mouv’
-  if (host.includes('mouv.fr') || path.includes('/mouv')) {
-    if (path.includes('xtra')) return RF_PULL.mouvxtra;
-    return RF_PULL.mouv;
-  }
-  // 3) Inter / Info / Culture
-  if (path.includes('/franceinter') || host.includes('franceinter.fr')) return RF_PULL.franceinter;
-  if (path.includes('/franceinfo') || host.includes('franceinfo.fr')) return RF_PULL.franceinfo;
-  if (path.includes('/franceculture') || host.includes('franceculture.fr')) return RF_PULL.franceculture;
-  // 4) Musique + webradios
+
+  if (path.startsWith('/franceinter') || host.includes('franceinter.fr')) return RF_PULL.franceinter;
+  if (path.startsWith('/franceinfo')  || host.includes('franceinfo.fr'))  return RF_PULL.franceinfo;
+  if (path.startsWith('/franceculture') || host.includes('franceculture.fr')) return RF_PULL.franceculture;
+
   if (path.includes('/francemusique') || host.includes('francemusique.fr')) {
     const fmKeys = {
       'classiqueeasy':'fmclassiqueeasy','classiqueplus':'fmclassiqueplus',
@@ -128,41 +124,83 @@ function rfGuessPullId(streamUrl) {
     }
     return RF_PULL.francemusique;
   }
-  // 5) *.radiofrance.fr génériques
-  if (host.includes('radiofrance.fr')) {
-    const m = path.match(/^\/([^/]+)/); // /fip-hifi.aac => 'fip-hifi.aac' (pas top)
-    if (m) {
-      const brand = m[1].replace(/[^a-z]/g,''); // garde lettres
-      if (RF_PULL[brand]) return RF_PULL[brand];
-    }
+
+  if (host.includes('mouv.fr') || path.startsWith('/mouv')) {
+    if (path.includes('xtra')) return RF_PULL.mouvxtra;
+    return RF_PULL.mouv;
   }
+
+  // générique *.radiofrance.fr : essaie d’extraire une "brand" en début de chemin
+  if (host.includes('radiofrance.fr')) {
+    const m = path.match(/^\/([a-z]+)/); // prend juste le début alphabétique
+    if (m && RF_PULL[m[1]]) return RF_PULL[m[1]];
+    // cas particulier : contient "fip" dans le segment de tête (ex: /fip-hifi.aac)
+    if (/^\/fip[-_]/.test(path)) return RF_PULL.fip;
+  }
+
   return null;
 }
 
 async function fetchRadioFranceByPullId(pullId) {
   if (!pullId) return null;
-  const fmWeb = [401,402,403,404,405,406,407];
-  const base = fmWeb.includes(pullId) ? 'https://www.francemusique.fr' : 'https://api.radiofrance.fr';
-  const url = `${base}/livemeta/pull/${pullId}`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'VLC/3.0 libVLC' } });
-  if (!r.ok) throw new Error(`rf livemeta not ok (${r.status})`);
-  const j = await r.json();
-  const steps = Array.isArray(j.steps) ? j.steps : [];
-  if (!steps.length) return null;
-  let idx = null;
-  try {
-    const lastLevel = j.levels?.[j.levels.length - 1];
-    if (lastLevel?.items?.length) {
-      const pick = lastLevel.items[lastLevel.items.length - 1];
-      if (typeof pick === 'number' && steps[pick]) idx = pick;
+
+  // On essaie plusieurs bases, certaines redéploient le livemeta par marque
+  const bases = [
+    'https://api.radiofrance.fr',
+    'https://www.fip.fr',            // utile pour FIP si l’API centrale rate
+    'https://www.francemusique.fr',  // webradios FM
+  ];
+
+  let lastErr = null;
+  for (const base of bases) {
+    const url = `${base}/livemeta/pull/${pullId}`;
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': 'VLC/3.0 libVLC' } });
+      if (!r.ok) { lastErr = new Error(`HTTP ${r.status}`); continue; }
+      const j = await r.json();
+
+      // ---- parsing large tolérant ----
+      // 1) "steps" + "levels"
+      if (Array.isArray(j.steps) && j.steps.length) {
+        let idx = null;
+        try {
+          const lastLevel = j.levels?.[j.levels.length - 1];
+          if (lastLevel?.items?.length) {
+            const pick = lastLevel.items[lastLevel.items.length - 1];
+            if (typeof pick === 'number' && j.steps[pick]) idx = pick;
+          }
+        } catch {}
+        if (idx == null) idx = Math.max(0, j.steps.length - 2);
+        const cur = j.steps[idx] || j.steps[j.steps.length - 1];
+        const artist = cur?.authors || cur?.artist || cur?.song?.artist || cur?.interpretes;
+        const title  = cur?.title   || cur?.song?.title  || cur?.subtitle || cur?.titre;
+        const text   = cur?.song?.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        if (text) return text;
+      }
+
+      // 2) "now" direct (certaines variantes peuvent exposer un objet current)
+      const now = j.now || j.current || j.now_playing;
+      if (now) {
+        const artist = now.artist || now.authors || now.interpretes;
+        const title  = now.title  || now.titre  || now.subtitle;
+        const text   = now.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        if (text) return text;
+      }
+
+      // 3) tout autre champ textuel plausible au premier niveau
+      for (const k of ['title','titre','subtitle','texte','text']) {
+        if (typeof j[k] === 'string' && j[k].trim()) return j[k].trim();
+      }
+
+      // pas de texte exploitable sur cette base, on essaie la suivante
+      lastErr = new Error('no usable fields');
+    } catch (e) {
+      lastErr = e;
+      continue;
     }
-  } catch {}
-  if (idx == null) idx = Math.max(0, steps.length - 2);
-  const cur = steps[idx] || steps[steps.length - 1];
-  const artist = cur?.authors || cur?.artist || cur?.song?.artist || cur?.interpretes;
-  const title  = cur?.title   || cur?.song?.title  || cur?.subtitle || cur?.titre;
-  const text   = cur?.song?.text || (artist && title ? `${artist} - ${title}` : (title || artist));
-  return text || null;
+  }
+
+  return null; // on a essayé toutes les bases
 }
 
 async function fetchRadioFranceFromStreamUrl(streamUrl) {
@@ -199,10 +237,13 @@ app.get('/api/metadata', async (req, res) => {
   const sendFallback = async (currentUrl, tryMp3 = true, diag = {}) => {
     try {
       // 0) Radio France : livemeta (large)
-      try {
-        const t = await fetchRadioFranceFromStreamUrl(currentUrl);
-        if (t) return finish({ ok: true, source: 'fallback-rf-livemeta', StreamTitle: t, fallbackUsed: 'rf-livemeta', ...diag });
-      } catch(_) {}
+    try {
+      const pullIdDbg = rfGuessPullId(currentUrl);
+      if (pullIdDbg) console.log('[RF] candidate pullId =', pullIdDbg, 'for', currentUrl);
+      const t = await fetchRadioFranceFromStreamUrl(currentUrl);
+      if (t) return finish({ ok: true, source: 'fallback-rf-livemeta', StreamTitle: t, fallbackUsed: 'rf-livemeta', ...diag });
+    } catch(_) {}
+
 
       const u = new URL(currentUrl);
       const origin = `${u.protocol}//${u.host}`;
@@ -365,10 +406,13 @@ app.get('/api/metadata/live', async (req, res) => {
   async function doFallback(currentUrl) {
     try {
       // 0) Radio France (large)
-      try {
-        const t = await fetchRadioFranceFromStreamUrl(currentUrl);
-        if (t) return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
-      } catch (_) {}
+    try {
+      const pullIdDbg = rfGuessPullId(currentUrl);
+      if (pullIdDbg) console.log('[RF][SSE] candidate pullId =', pullIdDbg, 'for', currentUrl);
+      const t = await fetchRadioFranceFromStreamUrl(currentUrl);
+      if (t) return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
+    } catch(_) {}
+
 
       const u = new URL(currentUrl);
       const origin = `${u.protocol}//${u.host}`;
