@@ -144,23 +144,39 @@ function rfGuessPullId(streamUrl) {
 async function fetchRadioFranceByPullId(pullId) {
   if (!pullId) return null;
 
-  // On essaie plusieurs bases, certaines redéploient le livemeta par marque
   const bases = [
     'https://api.radiofrance.fr',
-    'https://www.fip.fr',            // utile pour FIP si l’API centrale rate
-    'https://www.francemusique.fr',  // webradios FM
+    'https://www.fip.fr',
+    'https://www.francemusique.fr',
   ];
 
-  let lastErr = null;
+  const headers = {
+    'User-Agent': 'VLC/3.0 libVLC',
+    'Accept': 'application/json'
+  };
+
   for (const base of bases) {
     const url = `${base}/livemeta/pull/${pullId}`;
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': 'VLC/3.0 libVLC' } });
-      if (!r.ok) { lastErr = new Error(`HTTP ${r.status}`); continue; }
-      const j = await r.json();
+      console.log('[RF] GET', url);
+      const r = await fetch(url, { headers, redirect: 'follow' });
+      console.log('[RF] status', r.status, r.ok ? 'OK' : 'FAIL');
+      if (!r.ok) {
+        const txt = await r.text().catch(()=> '');
+        console.log('[RF] body(first 200):', txt.slice(0, 200));
+        continue;
+      }
 
-      // ---- parsing large tolérant ----
-      // 1) "steps" + "levels"
+      // Certaines CDNs renvoient parfois du texte non JSON (erreur HTML)
+      const text = await r.text();
+      if (!text || !text.trim().startsWith('{')) {
+        console.log('[RF] non-JSON payload(first 200):', text.slice(0,200));
+        continue;
+      }
+
+      const j = JSON.parse(text);
+
+      // ---- parse tolérant ----
       if (Array.isArray(j.steps) && j.steps.length) {
         let idx = null;
         try {
@@ -174,33 +190,33 @@ async function fetchRadioFranceByPullId(pullId) {
         const cur = j.steps[idx] || j.steps[j.steps.length - 1];
         const artist = cur?.authors || cur?.artist || cur?.song?.artist || cur?.interpretes;
         const title  = cur?.title   || cur?.song?.title  || cur?.subtitle || cur?.titre;
-        const text   = cur?.song?.text || (artist && title ? `${artist} - ${title}` : (title || artist));
-        if (text) return text;
+        const textNP = cur?.song?.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        if (textNP) { console.log('[RF] parsed from steps:', textNP); return textNP; }
       }
 
-      // 2) "now" direct (certaines variantes peuvent exposer un objet current)
       const now = j.now || j.current || j.now_playing;
       if (now) {
         const artist = now.artist || now.authors || now.interpretes;
         const title  = now.title  || now.titre  || now.subtitle;
-        const text   = now.text || (artist && title ? `${artist} - ${title}` : (title || artist));
-        if (text) return text;
+        const textNP = now.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        if (textNP) { console.log('[RF] parsed from now:', textNP); return textNP; }
       }
 
-      // 3) tout autre champ textuel plausible au premier niveau
+      // dernier recours : clé texte simple
       for (const k of ['title','titre','subtitle','texte','text']) {
-        if (typeof j[k] === 'string' && j[k].trim()) return j[k].trim();
+        if (typeof j[k] === 'string' && j[k].trim()) {
+          console.log('[RF] parsed from top-level:', j[k].trim());
+          return j[k].trim();
+        }
       }
 
-      // pas de texte exploitable sur cette base, on essaie la suivante
-      lastErr = new Error('no usable fields');
+      console.log('[RF] no usable fields at', url);
     } catch (e) {
-      lastErr = e;
-      continue;
+      console.log('[RF] fetch error for', base, e?.message);
     }
   }
 
-  return null; // on a essayé toutes les bases
+  return null;
 }
 
 async function fetchRadioFranceFromStreamUrl(streamUrl) {
@@ -237,12 +253,14 @@ app.get('/api/metadata', async (req, res) => {
   const sendFallback = async (currentUrl, tryMp3 = true, diag = {}) => {
     try {
       // 0) Radio France : livemeta (large)
-    try {
-      const pullIdDbg = rfGuessPullId(currentUrl);
-      if (pullIdDbg) console.log('[RF] candidate pullId =', pullIdDbg, 'for', currentUrl);
-      const t = await fetchRadioFranceFromStreamUrl(currentUrl);
-      if (t) return finish({ ok: true, source: 'fallback-rf-livemeta', StreamTitle: t, fallbackUsed: 'rf-livemeta', ...diag });
-    } catch(_) {}
+      // 0) Radio France : livemeta (large)
+      try {
+        const pullIdDbg = rfGuessPullId(currentUrl);
+        if (pullIdDbg) console.log('[RF] candidate pullId =', pullIdDbg, 'for', currentUrl);
+        const t = await fetchRadioFranceFromStreamUrl(currentUrl);
+        if (t) return finish({ ok: true, source: 'fallback-rf-livemeta', StreamTitle: t, fallbackUsed: 'rf-livemeta', ...diag });
+      } catch(_) {}
+
 
 
       const u = new URL(currentUrl);
@@ -406,12 +424,19 @@ app.get('/api/metadata/live', async (req, res) => {
   async function doFallback(currentUrl) {
     try {
       // 0) Radio France (large)
-    try {
-      const pullIdDbg = rfGuessPullId(currentUrl);
-      if (pullIdDbg) console.log('[RF][SSE] candidate pullId =', pullIdDbg, 'for', currentUrl);
-      const t = await fetchRadioFranceFromStreamUrl(currentUrl);
-      if (t) return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
-    } catch(_) {}
+// Radio France (large)
+try {
+  const pullIdDbg = rfGuessPullId(currentUrl);
+  if (pullIdDbg) console.log('[RF][SSE] candidate pullId =', pullIdDbg, 'for', currentUrl);
+  const t = await fetchRadioFranceFromStreamUrl(currentUrl);
+  if (t) {
+    // on renvoie à la fois un status (pour tracer la source) ET une metadata pour affichage immédiat
+    send('status', { fallbackUsed: 'rf-livemeta', StreamTitle: t });
+    send('metadata', { StreamTitle: t });
+    return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
+  }
+} catch (_) {}
+
 
 
       const u = new URL(currentUrl);
