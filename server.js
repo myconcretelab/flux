@@ -101,7 +101,7 @@ function rfGuessPullId(streamUrl) {
   const path = u.pathname.toLowerCase();
 
   // 1) FIP + webradios
-  if (host.includes('fipradio.fr') || path.includes('/fip')) {
+  if (host.includes('fipradio.fr') || path.includes('/fip') || path.includes('/fip-hifi') ) {
     for (const key of ['fiprock','fipjazz','fipgroove','fipmonde','fipnouveau','fipreggae','fipelectro','fipmetal']) {
       if (path.includes(key.replace('fip','/fip')) || path.includes(key)) return RF_PULL[key];
     }
