@@ -1,6 +1,6 @@
-/* StreamDeck Lite – v1.1.0 (SSE ready) */
+/* StreamDeck Lite – v1.2.0 (SSE + anti-spam + waitMs per stream) */
 (() => {
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   const els = sel => document.querySelectorAll(sel);
   const $ = sel => document.querySelector(sel);
 
@@ -14,12 +14,11 @@
   const nowUrl = $('#nowUrl');
   const nowMeta = $('#nowMeta');
   const playPause = $('#playPause');
+  const volume = $('#volume');
   const autoResume = $('#autoResume');
   const showLockInfo = $('#showLockInfo');
   const logBox = $('#logBox');
   const logEntries = $('#logEntries');
-  const toggleLog = $('#toggleLog');
-  const copyLog = $('#copyLog');
 
   const streamList = $('#streamList');
   const addQuick = $('#addQuick');
@@ -48,11 +47,12 @@
   const appVersion = $('#appVersion');
 
   const sleepMinutes = $('#sleepMinutes');
+  const sleepStart = $('#sleepStart');
   const sleepLeft = $('#sleepLeft');
 
   const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
-  // App state
+  // --- App state
   let streams = [];
   let settings = load('settings_v1', {
     autoResume: true,
@@ -60,16 +60,17 @@
     tryHttp: false,
     compactList: false,
     haptics: true,
-    useSSE: true // NEW: utilise l’endpoint SSE par défaut
+    useSSE: true
   });
   let lastId = load('lastId_v1', null);
   let sleepTimer = null;
   let sleepETA = 0;
 
-  // SSE / Polling state
-  let metaTimer = null;      // interval de polling
-  let es = null;             // EventSource courant
-  let currentMeta = '';      // dernière meta affichée
+  // --- Metadata state (SSE / Polling)
+  let metaTimer = null;   // polling interval
+  let es = null;          // EventSource
+  let currentMeta = '';   // dernière meta affichée
+  let lastShownAt = 0;    // anti-spam (timestamp ms)
 
   appVersion.textContent = VERSION;
 
@@ -81,18 +82,7 @@
   haptics.checked = !!settings.haptics;
   document.body.classList.toggle('compact', settings.compactList);
 
-  toggleLog.addEventListener('click', () => {
-    logBox.hidden = !logBox.hidden;
-    toggleLog.classList.toggle('on', !logBox.hidden);
-    toggleLog.setAttribute('aria-label', logBox.hidden ? 'Afficher le journal' : 'Masquer le journal');
-  });
-
-  copyLog?.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(logEntries.textContent || '');
-    } catch {}
-  });
-
+  // ------- Logging helpers -------
   function addLog(msg, obj){
     const time = new Date().toLocaleTimeString();
     const div = document.createElement('div');
@@ -105,6 +95,7 @@
     logEntries.appendChild(div);
     logBox.scrollTop = logBox.scrollHeight;
   }
+  function setModeBadge(mode){ addLog('Mode meta : ' + mode); }
 
   // ------- Storage helpers -------
   function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
@@ -162,14 +153,14 @@
     }catch{}
   });
 
-  // ------- Haptics (soft) -------
+  // ------- Haptics -------
   function buzz(){
     try{ if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(10); }catch{}
   }
 
   // ------- Streams rendering -------
   function renderLists(){
-    // Player list (simple)
+    // Player list
     streamList.innerHTML = '';
     streams
       .slice()
@@ -204,7 +195,7 @@
         streamList.appendChild(li);
       });
 
-    // Manage list (edit/reorder/delete)
+    // Manage list
     manageList.innerHTML = '';
     streams.forEach((s, idx)=>{
       const li = document.createElement('li');
@@ -350,7 +341,27 @@
     }
   });
 
-  // ------- Metadata: SSE + fallback polling -------
+  // ------- Helpers metadata (anti-spam + waitMs) -------
+  function showMeta(meta){
+    if (!meta) return;
+    const now = Date.now();
+    if (meta === currentMeta && (now - lastShownAt) < 60_000) return; // ignore doublon < 60s
+    currentMeta = meta;
+    lastShownAt = now;
+    nowMeta.textContent = meta;
+    addLog('Meta : ' + meta);
+  }
+
+  function getWaitMsForCurrent(){
+    const cur = getCurrent();
+    if (!cur) return undefined;
+    const m = (cur.notes || '').match(/wait=(\d{5,6})/); // ex: wait=120000
+    const val = m ? Number(m[1]) : undefined;
+    if (!val) return undefined;
+    return Math.max(5000, Math.min(300000, val));
+  }
+
+  // ------- Metadata: one-shot (polling fallback) -------
   async function refreshMetadataOnce(){
     const cur = getCurrent();
     if (!cur) return;
@@ -358,10 +369,25 @@
       url: cur.url,
       forceHttp: String(!!settings.tryHttp)
     });
+    const wait = getWaitMsForCurrent();
+    if (wait) q.set('waitMs', String(wait));
+
     addLog("Requête d'informations (one-shot) pour " + cur.name);
     try{
       const info = await fetch('/api/metadata?' + q.toString()).then(r=>r.json());
-      handleMetadataResponse(info);
+      if (info.ok) {
+        const meta = info.StreamTitle || info.title || info['icy-name'];
+        if (meta) {
+          showMeta(meta);
+          addLog('Diag (one-shot OK)', info);
+        } else {
+          nowMeta.textContent = 'Aucune information trouvée';
+          addLog('Aucune information trouvée (one-shot)', info);
+        }
+      } else {
+        nowMeta.textContent = 'Aucune info (diag dans le journal)';
+        addLog('Diag (one-shot)', info);
+      }
     }catch(err){
       const msg = err?.message || 'erreur';
       nowMeta.textContent = msg;
@@ -369,28 +395,9 @@
     }
   }
 
-  function handleMetadataResponse(info){
-    if (info.ok) {
-      const meta = info.StreamTitle || info.title || info['icy-name'];
-      if (meta){
-        if (meta !== currentMeta) {
-          currentMeta = meta;
-          nowMeta.textContent = meta;
-          addLog('Meta (one-shot) : ' + meta, info);
-        }
-      } else {
-        nowMeta.textContent = 'Aucune information trouvée';
-        addLog('Aucune information trouvée (one-shot)', info);
-      }
-    } else {
-      // Diagnostic lisible
-      nowMeta.textContent = 'Aucune info (diag dans le journal)';
-      addLog('Diag (one-shot)', info);
-    }
-  }
-
   function startPolling(){
     stopPolling();
+    setModeBadge('Polling');
     refreshMetadataOnce();
     metaTimer = setInterval(refreshMetadataOnce, 30000);
   }
@@ -398,8 +405,9 @@
     if (metaTimer){ clearInterval(metaTimer); metaTimer=null; }
   }
 
+  // ------- Metadata: SSE -------
   function startSSE(){
-    stopSSE(); // au cas où
+    stopSSE();
     const cur = getCurrent();
     if (!cur) return;
 
@@ -407,34 +415,30 @@
       url: cur.url,
       forceHttp: String(!!settings.tryHttp)
     });
-    const sseUrl = '/api/metadata/live?' + q.toString();
+    const wait = getWaitMsForCurrent();
+    if (wait) q.set('waitMs', String(wait));
 
+    const sseUrl = '/api/metadata/live?' + q.toString();
     addLog('Connexion SSE : ' + sseUrl);
     es = new EventSource(sseUrl);
+    setModeBadge('SSE');
 
     es.addEventListener('status', e => {
       const data = safeJSON(e.data);
       addLog('SSE status', data);
-      // Affiche une info courte si rien encore
-      if (!currentMeta && data?.reason) {
-        nowMeta.textContent = '…';
-      }
+      if (!currentMeta && data?.StreamTitle) showMeta(data.StreamTitle);
     });
 
     es.addEventListener('metadata', e => {
       const data = safeJSON(e.data);
       const meta = data?.StreamTitle || data?.title || data?.['icy-name'];
-      if (meta && meta !== currentMeta){
-        currentMeta = meta;
-        nowMeta.textContent = meta;
-        addLog('SSE metadata : ' + meta, data);
-      }
+      if (meta) showMeta(meta);
     });
 
     es.addEventListener('end', _e => {
       addLog('SSE terminé');
       stopSSE();
-      // Option : basculer automatiquement en polling si le flux coupe
+      // bascule automatique en polling
       startPolling();
     });
 
@@ -452,6 +456,7 @@
   function safeJSON(s){ try{ return JSON.parse(s); }catch{ return null; } }
 
   // ------- Audio / Playback -------
+  volume.addEventListener('input', ()=> audio.volume = Number(volume.value));
 
   playPause.addEventListener('click', ()=>{
     if (audio.paused){
@@ -468,8 +473,8 @@
     playPause.setAttribute('aria-label','Stop');
     setMediaSession();
     currentMeta = '';
+    lastShownAt = 0;
     nowMeta.textContent = '';
-    // Métadonnées live
     if (settings.useSSE){
       startSSE();
     } else {
@@ -495,7 +500,6 @@
   });
 
   audio.addEventListener('error', ()=>{
-    // Erreur potentielle de “mixed content” ou CORS
     playPause.disabled = false;
     const code = audio.error?.code;
     const msg = (code===4) ? 'Format/URL non supporté, ou accès bloqué.' : 'Erreur de lecture.';
@@ -524,6 +528,7 @@
     nowUrl.textContent = s.url;
     nowMeta.textContent = '';
     currentMeta = '';
+    lastShownAt = 0;
 
     let src = s.url;
     if (settings.tryHttp && /^https:\/\//i.test(src)){
@@ -576,11 +581,11 @@
   }
 
   // ------- Sleep timer -------
-  sleepMinutes.addEventListener('input', ()=>{
+  sleepStart.addEventListener('click', ()=>{
     const mins = Math.max(0, Number(sleepMinutes.value||0));
     if (sleepTimer){ clearInterval(sleepTimer); sleepTimer = null; }
     if (mins===0){
-      sleepLeft.textContent = '';
+      sleepLeft.textContent = 'Minuteur désactivé.';
       return;
     }
     sleepETA = Date.now() + mins*60*1000;
@@ -625,7 +630,7 @@
     const presets = [
       { name:'FIP hifi', url:'http://icecast.radiofrance.fr/fip-hifi.aac', format:'aac', favorite:true, notes:'Radio France' },
       { name:'FIP Rock', url:'http://icecast.radiofrance.fr/fiprock-midfi.mp3', format:'mp3', favorite:false, notes:'Thématique' },
-      { name:'Radio Swiss Jazz', url:'https://stream.srg-ssr.ch/m/rsj/aacp_96', format:'aac', favorite:false, notes:'AAC 96k' }
+      { name:'France Inter', url:'http://icecast.radiofrance.fr/franceinter-hifi.aac', format:'aac', favorite:false, notes:'wait=120000' }
     ];
     streams = presets.map(p=>({ id: cryptoRandom(), ...p }));
     persistAll();
