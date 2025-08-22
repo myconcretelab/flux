@@ -139,18 +139,50 @@ function coalesce(...vals) {
   return null;
 }
 
-function deepSearchArtistTitle(obj, depth = 0) {
-  if (!obj || typeof obj !== 'object' || depth > 4) return null;
-  // Cherche patterns usuels
-  const artist = coalesce(obj.artist, obj.authors, obj.auteurs, obj.interpretes, obj.author);
-  const title  = coalesce(obj.title, obj.titre, obj.subtitle, obj.name);
-  const text   = coalesce(obj.text, obj.texte, obj.song?.text);
+function coalesce(...vals) {
+  for (const v of vals) if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+  return null;
+}
+
+// Recherche tolérante artiste/titre/texte dans un objet **ou un tableau** (profondeur limitée)
+function deepSearchArtistTitle(node, depth = 0) {
+  if (node == null || depth > 5) return null;
+
+  // Si c'est un tableau, essayer chaque élément
+  if (Array.isArray(node)) {
+    for (const it of node) {
+      const hit = deepSearchArtistTitle(it, depth + 1);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  if (typeof node !== 'object') return null;
+
+  // Essais directs “simples”
+  const artist = coalesce(node.artist, node.authors, node.auteurs, node.interpretes, node.author, node.performer);
+  const title  = coalesce(node.title, node.titre, node.subtitle, node.name, node.label);
+  const text   = coalesce(node.text, node.texte, node.song?.text, node.now?.text, node.current?.text);
+
   if (text) return text;
   if (artist && title) return `${artist} - ${title}`;
-  // explore enfants
-  for (const k of Object.keys(obj)) {
-    const v = obj[k];
-    if (v && typeof v === 'object') {
+  if (title) return title; // un titre seul vaut mieux que rien
+
+  // Quelques chemins “classiques” possibles
+  const common = coalesce(
+    node?.song?.title,
+    node?.song?.name,
+    node?.track?.title,
+    node?.track?.name,
+    node?.now_playing?.song?.text,
+    node?.now_playing?.song?.title
+  );
+  if (common) return common;
+
+  // Sinon on explore récursivement toutes les propriétés
+  for (const k of Object.keys(node)) {
+    const v = node[k];
+    if (v && (typeof v === 'object')) {
       const hit = deepSearchArtistTitle(v, depth + 1);
       if (hit) return hit;
     }
@@ -158,12 +190,13 @@ function deepSearchArtistTitle(obj, depth = 0) {
   return null;
 }
 
+
 async function fetchRadioFranceByPullId(pullId) {
   if (!pullId) return null;
 
   const bases = [
     'https://api.radiofrance.fr',
-    'https://www.francemusique.fr', // pour webradios FM
+    'https://www.francemusique.fr', // pour certaines webradios FM
   ];
   const headers = { 'User-Agent': 'VLC/3.0 libVLC', 'Accept': 'application/json' };
 
@@ -174,14 +207,28 @@ async function fetchRadioFranceByPullId(pullId) {
       const r = await fetch(url, { headers, redirect: 'follow' });
       console.log('[RF] status', r.status, r.ok ? 'OK' : 'FAIL');
       const body = await r.text();
-      if (!r.ok) { console.log('[RF] body(first 200):', body.slice(0,200)); continue; }
-      if (!body || !body.trim().startsWith('{')) {
-        console.log('[RF] non-JSON payload(first 200):', (body||'').slice(0,200));
+
+      if (!r.ok) {
+        console.log('[RF] body(first 300):', body.slice(0, 300));
         continue;
       }
-      const j = JSON.parse(body);
+      // Le CDN peut répondre HTML (erreur) malgré 200 — vérifions
+      const looksJson = body && body.trim().startsWith('{') || body.trim().startsWith('[');
+      if (!looksJson) {
+        console.log('[RF] non-JSON 200 (first 300):', body.slice(0, 300));
+        continue;
+      }
 
-      // 1) steps/levels
+      let j;
+      try { j = JSON.parse(body); }
+      catch (e) {
+        console.log('[RF] JSON parse error:', e?.message, 'first 300:', body.slice(0,300));
+        continue;
+      }
+
+      // ---- PARSE TOLÉRANT ----
+
+      // A) schéma steps/levels classique
       if (Array.isArray(j.steps) && j.steps.length) {
         let idx = null;
         try {
@@ -195,28 +242,46 @@ async function fetchRadioFranceByPullId(pullId) {
         const cur = j.steps[idx] || j.steps[j.steps.length - 1];
         const artist = coalesce(cur?.authors, cur?.artist, cur?.song?.artist, cur?.interpretes);
         const title  = coalesce(cur?.title, cur?.song?.title, cur?.subtitle, cur?.titre);
-        const textNP = coalesce(cur?.song?.text, artist && title ? `${artist} - ${title}` : null, title, artist);
+        const textNP = coalesce(cur?.song?.text, (artist && title) ? `${artist} - ${title}` : null, title, artist);
         if (textNP) { console.log('[RF] parsed from steps:', textNP); return textNP; }
       }
-      // 2) now/current
-      const now = j.now || j.current || j.now_playing;
-      if (now) {
-        const artist = coalesce(now.artist, now.authors, now.interpretes);
-        const title  = coalesce(now.title, now.titre, now.subtitle);
-        const textNP = coalesce(now.text, artist && title ? `${artist} - ${title}` : null, title, artist);
-        if (textNP) { console.log('[RF] parsed from now:', textNP); return textNP; }
+
+      // B) variantes “now”
+      const candNow = j.now || j.current || j.onair || j.playing || j.programme || j.now_playing;
+      if (candNow) {
+        const artist = coalesce(candNow.artist, candNow.authors, candNow.interpretes, candNow.performer);
+        const title  = coalesce(candNow.title, candNow.titre, candNow.subtitle, candNow.name, candNow.label);
+        const textNP = coalesce(candNow.text, (artist && title) ? `${artist} - ${title}` : null, title, artist);
+        if (textNP) { console.log('[RF] parsed from now-like:', textNP); return textNP; }
       }
-      // 3) scan large récursif
+
+      // C) top-level **tableau** → on scanne chaque entrée
+      if (Array.isArray(j)) {
+        const hit = deepSearchArtistTitle(j);
+        if (hit) { console.log('[RF] parsed from array deep scan:', hit); return hit; }
+      }
+
+      // D) scan profond (objets + tableaux imbriqués)
       const deep = deepSearchArtistTitle(j);
       if (deep) { console.log('[RF] parsed by deep scan:', deep); return deep; }
 
-      console.log('[RF] no usable fields at', url);
+      // E) dernier recours : quelques clés simples au 1er niveau
+      for (const k of ['title','titre','subtitle','texte','text']) {
+        if (typeof j[k] === 'string' && j[k].trim()) {
+          console.log('[RF] parsed from top-level:', j[k].trim());
+          return j[k].trim();
+        }
+      }
+
+      // ---- Rien trouvé : LOGGONS un extrait du 200 pour voir la structure réelle
+      console.log('[RF] 200 but no usable fields, dump(first 400):', body.slice(0, 400));
     } catch (e) {
       console.log('[RF] fetch error for', base, e?.message);
     }
   }
   return null;
 }
+
 
 async function fetchRadioFranceFromStreamUrl(streamUrl) {
   const pullId = rfGuessPullId(streamUrl);
