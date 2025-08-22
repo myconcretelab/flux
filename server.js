@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-/* -------------------------------- helpers génériques -------------------------------- */
+/* -------------------------- helpers génériques -------------------------- */
 
 function toAbsoluteHttp(url) {
   try { const u = new URL(url); if (u.protocol === 'https:') u.protocol = 'http:'; return u.toString(); }
@@ -74,19 +74,13 @@ function getStreamWithRedirects(u, options, onResponse, onError) {
   return req;
 }
 
-/* -------------------------------- Radio France: mapping livemeta -------------------------------- */
-// IDs livemeta connus/usités
+/* -------------------------- Radio France: mapping -------------------------- */
+
 const RF_PULL = {
   // grandes antennes
-  franceinter: 1,
-  franceinfo: 2,
-  franceculture: 3,
-  francemusique: 4,
-  mouv: 6,
-  fip: 7,
+  franceinter: 1, franceinfo: 2, franceculture: 3, francemusique: 4, mouv: 6, fip: 7,
   // FIP webradios
-  fiprock: 64, fipjazz: 65, fipgroove: 66, fipmonde: 69,
-  fipnouveau: 70, fipreggae: 71, fipelectro: 74, fipmetal: 77,
+  fiprock: 64, fipjazz: 65, fipgroove: 66, fipmonde: 69, fipnouveau: 70, fipreggae: 71, fipelectro: 74, fipmetal: 77,
   // Mouv’ extra
   mouvxtra: 75,
   // France Musique webradios
@@ -100,13 +94,12 @@ function rfGuessPullId(streamUrl) {
   const host = u.host.toLowerCase();
   const path = u.pathname.toLowerCase();
 
-  // cas forts: préfixes explicites
+  // cas forts FIP
   if (path.startsWith('/fip-') || path === '/fip' || host.includes('fipradio.fr')) {
-    // sous-canaux FIP
     for (const key of ['fiprock','fipjazz','fipgroove','fipmonde','fipnouveau','fipreggae','fipelectro','fipmetal']) {
-      if (path.includes('/' + key.replace('fip','fip'))) return RF_PULL[key];
+      if (path.includes('/' + key.replace('fip','fip')) || path.includes(key)) return RF_PULL[key];
     }
-    return RF_PULL.fip; // défaut
+    return RF_PULL.fip;
   }
 
   if (path.startsWith('/franceinter') || host.includes('franceinter.fr')) return RF_PULL.franceinter;
@@ -130,14 +123,38 @@ function rfGuessPullId(streamUrl) {
     return RF_PULL.mouv;
   }
 
-  // générique *.radiofrance.fr : essaie d’extraire une "brand" en début de chemin
   if (host.includes('radiofrance.fr')) {
-    const m = path.match(/^\/([a-z]+)/); // prend juste le début alphabétique
+    const m = path.match(/^\/([a-z]+)/);
     if (m && RF_PULL[m[1]]) return RF_PULL[m[1]];
-    // cas particulier : contient "fip" dans le segment de tête (ex: /fip-hifi.aac)
     if (/^\/fip[-_]/.test(path)) return RF_PULL.fip;
   }
 
+  return null;
+}
+
+/* -------------------------- RF livemeta fetch + parse tolérant -------------------------- */
+
+function coalesce(...vals) {
+  for (const v of vals) if (v !== undefined && v !== null && String(v).trim()) return String(v).trim();
+  return null;
+}
+
+function deepSearchArtistTitle(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 4) return null;
+  // Cherche patterns usuels
+  const artist = coalesce(obj.artist, obj.authors, obj.auteurs, obj.interpretes, obj.author);
+  const title  = coalesce(obj.title, obj.titre, obj.subtitle, obj.name);
+  const text   = coalesce(obj.text, obj.texte, obj.song?.text);
+  if (text) return text;
+  if (artist && title) return `${artist} - ${title}`;
+  // explore enfants
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+    if (v && typeof v === 'object') {
+      const hit = deepSearchArtistTitle(v, depth + 1);
+      if (hit) return hit;
+    }
+  }
   return null;
 }
 
@@ -146,14 +163,9 @@ async function fetchRadioFranceByPullId(pullId) {
 
   const bases = [
     'https://api.radiofrance.fr',
-    'https://www.fip.fr',
-    'https://www.francemusique.fr',
+    'https://www.francemusique.fr', // pour webradios FM
   ];
-
-  const headers = {
-    'User-Agent': 'VLC/3.0 libVLC',
-    'Accept': 'application/json'
-  };
+  const headers = { 'User-Agent': 'VLC/3.0 libVLC', 'Accept': 'application/json' };
 
   for (const base of bases) {
     const url = `${base}/livemeta/pull/${pullId}`;
@@ -161,22 +173,15 @@ async function fetchRadioFranceByPullId(pullId) {
       console.log('[RF] GET', url);
       const r = await fetch(url, { headers, redirect: 'follow' });
       console.log('[RF] status', r.status, r.ok ? 'OK' : 'FAIL');
-      if (!r.ok) {
-        const txt = await r.text().catch(()=> '');
-        console.log('[RF] body(first 200):', txt.slice(0, 200));
+      const body = await r.text();
+      if (!r.ok) { console.log('[RF] body(first 200):', body.slice(0,200)); continue; }
+      if (!body || !body.trim().startsWith('{')) {
+        console.log('[RF] non-JSON payload(first 200):', (body||'').slice(0,200));
         continue;
       }
+      const j = JSON.parse(body);
 
-      // Certaines CDNs renvoient parfois du texte non JSON (erreur HTML)
-      const text = await r.text();
-      if (!text || !text.trim().startsWith('{')) {
-        console.log('[RF] non-JSON payload(first 200):', text.slice(0,200));
-        continue;
-      }
-
-      const j = JSON.parse(text);
-
-      // ---- parse tolérant ----
+      // 1) steps/levels
       if (Array.isArray(j.steps) && j.steps.length) {
         let idx = null;
         try {
@@ -188,45 +193,40 @@ async function fetchRadioFranceByPullId(pullId) {
         } catch {}
         if (idx == null) idx = Math.max(0, j.steps.length - 2);
         const cur = j.steps[idx] || j.steps[j.steps.length - 1];
-        const artist = cur?.authors || cur?.artist || cur?.song?.artist || cur?.interpretes;
-        const title  = cur?.title   || cur?.song?.title  || cur?.subtitle || cur?.titre;
-        const textNP = cur?.song?.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        const artist = coalesce(cur?.authors, cur?.artist, cur?.song?.artist, cur?.interpretes);
+        const title  = coalesce(cur?.title, cur?.song?.title, cur?.subtitle, cur?.titre);
+        const textNP = coalesce(cur?.song?.text, artist && title ? `${artist} - ${title}` : null, title, artist);
         if (textNP) { console.log('[RF] parsed from steps:', textNP); return textNP; }
       }
-
+      // 2) now/current
       const now = j.now || j.current || j.now_playing;
       if (now) {
-        const artist = now.artist || now.authors || now.interpretes;
-        const title  = now.title  || now.titre  || now.subtitle;
-        const textNP = now.text || (artist && title ? `${artist} - ${title}` : (title || artist));
+        const artist = coalesce(now.artist, now.authors, now.interpretes);
+        const title  = coalesce(now.title, now.titre, now.subtitle);
+        const textNP = coalesce(now.text, artist && title ? `${artist} - ${title}` : null, title, artist);
         if (textNP) { console.log('[RF] parsed from now:', textNP); return textNP; }
       }
-
-      // dernier recours : clé texte simple
-      for (const k of ['title','titre','subtitle','texte','text']) {
-        if (typeof j[k] === 'string' && j[k].trim()) {
-          console.log('[RF] parsed from top-level:', j[k].trim());
-          return j[k].trim();
-        }
-      }
+      // 3) scan large récursif
+      const deep = deepSearchArtistTitle(j);
+      if (deep) { console.log('[RF] parsed by deep scan:', deep); return deep; }
 
       console.log('[RF] no usable fields at', url);
     } catch (e) {
       console.log('[RF] fetch error for', base, e?.message);
     }
   }
-
   return null;
 }
 
 async function fetchRadioFranceFromStreamUrl(streamUrl) {
   const pullId = rfGuessPullId(streamUrl);
   if (!pullId) return null;
+  console.log('[RF] candidate pullId =', pullId, 'for', streamUrl);
   try { return await fetchRadioFranceByPullId(pullId); }
-  catch { return null; }
+  catch (e) { console.log('[RF] error', e?.message); return null; }
 }
 
-/* -------------------------------- REST: gérer la liste -------------------------------- */
+/* -------------------------- REST: liste -------------------------- */
 
 app.get('/api/streams', async (_req, res) => res.json(await readStreams()));
 app.put('/api/streams', async (req, res) => {
@@ -235,7 +235,7 @@ app.put('/api/streams', async (req, res) => {
   res.json({ ok: true });
 });
 
-/* -------------------------------- One-shot: /api/metadata -------------------------------- */
+/* -------------------------- One-shot: /api/metadata -------------------------- */
 
 app.get('/api/metadata', async (req, res) => {
   const originalUrl = req.query.url;
@@ -246,41 +246,34 @@ app.get('/api/metadata', async (req, res) => {
   const url = maybeForceHttp(originalUrl, forceHttp);
   let answered = false;
 
-  const finish = (obj) => {
-    if (!answered) { answered = true; res.json(obj); }
-  };
+  const finish = (obj) => { if (!answered) { answered = true; res.json(obj); } };
 
   const sendFallback = async (currentUrl, tryMp3 = true, diag = {}) => {
     try {
-      // 0) Radio France : livemeta (large)
-      // 0) Radio France : livemeta (large)
+      // 0) Radio France
       try {
-        const pullIdDbg = rfGuessPullId(currentUrl);
-        if (pullIdDbg) console.log('[RF] candidate pullId =', pullIdDbg, 'for', currentUrl);
         const t = await fetchRadioFranceFromStreamUrl(currentUrl);
         if (t) return finish({ ok: true, source: 'fallback-rf-livemeta', StreamTitle: t, fallbackUsed: 'rf-livemeta', ...diag });
       } catch(_) {}
-
-
 
       const u = new URL(currentUrl);
       const origin = `${u.protocol}//${u.host}`;
       const mount = guessMount(currentUrl);
 
-      // 1) Icecast status avec ?mount=
+      // 1) Icecast status
       try {
         const j = await fetchIcecastStatus(origin, mount);
         const title = extractTitleFromIcecastJson(j, mount);
         if (title) return finish({ ok: true, source: 'fallback-icecast', StreamTitle: title, fallbackUsed: 'icecast-status', ...diag });
       } catch (_) {}
 
-      // 2) Essai MP3 si AAC/AACP
+      // 2) essai MP3
       if (tryMp3 && /\.(aac|aacp)\b/i.test(u.pathname)) {
         const mp3Url = currentUrl.replace(/\.(aac|aacp)\b/i, '.mp3');
         return tryIcy(mp3Url, waitMs, false, { ...diag, fallbackUsed: 'try-mp3' });
       }
 
-      // 3) Endpoint générique nowplaying
+      // 3) nowplaying générique
       try {
         const j = await fetchGenericNowPlaying(origin);
         const title = j?.now_playing?.song?.text || j?.now_playing?.song?.title || j?.song || j?.title;
@@ -292,12 +285,7 @@ app.get('/api/metadata', async (req, res) => {
   };
 
   function tryIcy(u = url, timeoutMs = waitMs, tryMp3OnFail = true, diag = {}) {
-    const headers = {
-      'Icy-MetaData': '1',
-      'User-Agent': 'VLC/3.0 libVLC',
-      'Accept': '*/*',
-    };
-
+    const headers = { 'Icy-MetaData': '1', 'User-Agent': 'VLC/3.0 libVLC', 'Accept': '*/*' };
     getStreamWithRedirects(
       u,
       { headers },
@@ -309,18 +297,15 @@ app.get('/api/metadata', async (req, res) => {
           icyRes.destroy();
           return sendFallback(finalUrl, tryMp3OnFail, { connected: true, icyMeta: false, redirectedTo: finalUrl, ...diag });
         }
-
         let timer = setTimeout(() => {
           console.warn('[ICY] Timeout waiting for metadata');
-          // On ne répond pas tout de suite en échec: on envoie un diag et on laisse la chance au flux.
-          // Mais en one-shot il faut rendre la main => fallback informatif
           icyRes.destroy();
           sendFallback(finalUrl, tryMp3OnFail, { connected: true, icyMeta: true, timedOut: true, redirectedTo: finalUrl, ...diag });
         }, timeoutMs);
 
         icyRes.on('metadata', (metadata) => {
           clearTimeout(timer);
-          const parsed = icy.parse(metadata); // ex: { StreamTitle: 'Artist - Title' }
+          const parsed = icy.parse(metadata);
           console.log('[ICY] metadata:', parsed);
           finish({ ok: true, source: 'icy', redirectedTo: finalUrl, ...parsed });
           icyRes.destroy();
@@ -346,12 +331,12 @@ app.get('/api/metadata', async (req, res) => {
   }
 });
 
-/* -------------------------------- SSE: /api/metadata/live -------------------------------- */
+/* -------------------------- SSE: /api/metadata/live -------------------------- */
 
 app.get('/api/metadata/live', async (req, res) => {
   const originalUrl = req.query.url;
   const forceHttp = String(req.query.forceHttp || 'false').toLowerCase() === 'true';
-  const waitMs = Math.max(5000, Math.min(300000, Number(req.query.waitMs || 90000))); // défaut 90s
+  const waitMs = Math.max(5000, Math.min(300000, Number(req.query.waitMs || 90000)));
   if (!originalUrl) return res.status(400).end('Missing url');
 
   const url = maybeForceHttp(originalUrl, forceHttp);
@@ -369,11 +354,7 @@ app.get('/api/metadata/live', async (req, res) => {
   };
   const end = () => { if (!ended) { ended = true; send('end', { bye: true }); res.end(); } };
 
-  const headers = {
-    'Icy-MetaData': '1',
-    'User-Agent': 'VLC/3.0 libVLC',
-    'Accept': '*/*',
-  };
+  const headers = { 'Icy-MetaData': '1', 'User-Agent': 'VLC/3.0 libVLC', 'Accept': '*/*' };
 
   const streamReq = getStreamWithRedirects(
     url,
@@ -384,25 +365,27 @@ app.get('/api/metadata/live', async (req, res) => {
       if (!metaInt) {
         send('status', { connected: true, icyMeta: false, redirectedTo: finalUrl, reason: 'no-icy-meta' });
         icyRes.destroy();
-        // Fallback informatif (on NE ferme PAS la SSE ici)
-        doFallback(finalUrl).then(x => send('status', x)).catch(()=>{});
-        // on reste ouvert (au cas où une reconnexion côté CDN fournirait des metas plus tard)
+        // Fallback RF/others informatif (et on RESTE ouvert)
+        doFallback(finalUrl).then(x => {
+          send('status', x);
+          if (x?.StreamTitle) send('metadata', { StreamTitle: x.StreamTitle });
+        }).catch(()=>{});
         return;
       }
 
       send('status', { connected: true, icyMeta: true, redirectedTo: finalUrl });
       let timer = setTimeout(() => {
-        // On signale juste qu'on a attendu trop longtemps, on tente un fallback,
-        // mais on CONTINUE d'écouter les metadatas futures.
         send('status', { connected: true, icyMeta: true, timedOut: true, redirectedTo: finalUrl, reason: 'timeout-first-metadata' });
-        doFallback(finalUrl).then(x => send('status', x)).catch(()=>{});
+        doFallback(finalUrl).then(x => {
+          send('status', x);
+          if (x?.StreamTitle) send('metadata', { StreamTitle: x.StreamTitle });
+        }).catch(()=>{});
       }, waitMs);
 
       icyRes.on('metadata', (metadata) => {
         clearTimeout(timer);
         const parsed = icy.parse(metadata);
         send('metadata', parsed);
-        // on peut recréer un timer si on veut signaler “long time no meta”, mais pas nécessaire
       });
 
       icyRes.on('error', (err) => {
@@ -411,7 +394,6 @@ app.get('/api/metadata/live', async (req, res) => {
         end();
       });
 
-      // fermeture côté client (Express)
       req.on('close', () => { clearTimeout(timer); try { icyRes.destroy(); } catch {} end(); });
       res.on('close', () => { clearTimeout(timer); try { icyRes.destroy(); } catch {} end(); });
     },
@@ -423,21 +405,11 @@ app.get('/api/metadata/live', async (req, res) => {
 
   async function doFallback(currentUrl) {
     try {
-      // 0) Radio France (large)
-// Radio France (large)
-try {
-  const pullIdDbg = rfGuessPullId(currentUrl);
-  if (pullIdDbg) console.log('[RF][SSE] candidate pullId =', pullIdDbg, 'for', currentUrl);
-  const t = await fetchRadioFranceFromStreamUrl(currentUrl);
-  if (t) {
-    // on renvoie à la fois un status (pour tracer la source) ET une metadata pour affichage immédiat
-    send('status', { fallbackUsed: 'rf-livemeta', StreamTitle: t });
-    send('metadata', { StreamTitle: t });
-    return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
-  }
-} catch (_) {}
-
-
+      // 0) Radio France
+      try {
+        const t = await fetchRadioFranceFromStreamUrl(currentUrl);
+        if (t) return { fallbackUsed: 'rf-livemeta', StreamTitle: t };
+      } catch (_) {}
 
       const u = new URL(currentUrl);
       const origin = `${u.protocol}//${u.host}`;
@@ -489,7 +461,7 @@ try {
   }
 });
 
-/* -------------------------------- Start -------------------------------- */
+/* -------------------------- Start -------------------------- */
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
