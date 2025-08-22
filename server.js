@@ -4,6 +4,8 @@ const cors = require('cors');
 const fs = require('fs').promises;
 const icy = require('icy');
 const { http, https } = require('follow-redirects');
+const meta = require('./radio-metadata-utils'); // chemin selon ton projet
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
