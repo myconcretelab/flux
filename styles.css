@@ -11,6 +11,9 @@
   --radius-sm:12px;
   /* Couleur de fond du lecteur (configurable) */
   --player-bg: var(--card);
+  /* Couleurs de texte du lecteur (ajustées dynamiquement) */
+  --player-fg: var(--fg);
+  --player-muted: var(--muted);
 }
 
 *{box-sizing:border-box}
@@ -130,6 +133,7 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .player-area .player-card{
   position:relative;
   background: var(--player-bg);
+  color: var(--player-fg);
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -138,6 +142,8 @@ label input[type="text"], label input[type="url"], label select, input[type="num
   gap:16px;
   min-height:50vh;
 }
+.player-area .player-card .muted,
+.player-area .player-card .url{ color: var(--player-muted); }
 .log-box{width:100%; font-size:12px; max-height:180px; overflow:auto; overflow-wrap:anywhere}
 .log-box h2{margin:0 0 8px; font-size:14px}
 .log-box pre{white-space:pre-wrap}

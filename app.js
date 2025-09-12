@@ -89,9 +89,48 @@
     } else {
       document.documentElement.style.removeProperty('--player-bg');
     }
+    updatePlayerContrast();
   }
   applyPlayerBg();
   if (playerBgColor) playerBgColor.value = settings.playerBg || '#f7f8fa';
+
+  // Ajuste automatiquement la couleur du texte du lecteur pour le contraste
+  function updatePlayerContrast(){
+    const card = document.querySelector('.player-area .player-card');
+    if (!card) return;
+    const bg = getComputedStyle(card).backgroundColor; // ex: rgb(247, 248, 250)
+    const rgb = parseRGB(bg);
+    if (!rgb) return;
+    const lum = relativeLuminance(rgb.r, rgb.g, rgb.b);
+    const isDark = lum < 0.5; // seuil simple, efficace pour UIs courantes
+    if (isDark){
+      document.documentElement.style.setProperty('--player-fg', '#ffffff');
+      document.documentElement.style.setProperty('--player-muted', 'rgba(255,255,255,.75)');
+    } else {
+      document.documentElement.style.setProperty('--player-fg', '#111827');
+      document.documentElement.style.setProperty('--player-muted', '#6b7280');
+    }
+  }
+
+  function parseRGB(str){
+    // gère rgb(a) et #rrggbb si jamais utilisé ailleurs
+    if (!str) return null;
+    let m = str.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (m){ return { r:Number(m[1]), g:Number(m[2]), b:Number(m[3]) }; }
+    // #rrggbb
+    m = str.trim().match(/^#([\da-f]{6})$/i);
+    if (m){
+      const n = parseInt(m[1],16);
+      return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+    }
+    return null;
+  }
+
+  function relativeLuminance(r,g,b){
+    // W3C relative luminance
+    const srgb = [r,g,b].map(v=>v/255).map(v=> v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4));
+    return 0.2126*srgb[0] + 0.7152*srgb[1] + 0.0722*srgb[2];
+  }
 
   toggleLog.addEventListener('click', () => {
     logBox.hidden = !logBox.hidden;
