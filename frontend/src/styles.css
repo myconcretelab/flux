@@ -1,0 +1,221 @@
+/* Migrated styles from root styles.css */
+:root{
+  --bg:#ffffff;
+  --fg:#111827;
+  --muted:#6b7280;
+  --card:#f7f8fa;
+  --border:#e5e7eb;
+  --primary:#0a0e27;
+  --danger:#ef4444;
+  --shadow:0 6px 18px rgba(0,0,0,.08);
+  --radius:16px;
+  --radius-sm:12px;
+  /* Couleur de fond du lecteur (configurable) */
+  --player-bg: var(--card);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  color:var(--fg);
+  background:var(--bg);
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+/* Contrainte de largeur sur ordinateur tout en gardant le scroll page */
+.container{width:100%; max-width:800px; margin:0 auto}
+
+.app-header{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center;
+  padding:12px 16px;
+  background:linear-gradient(#fff,#fff8);
+  backdrop-filter:saturate(160%) blur(8px);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex; gap:10px; align-items:center; font-weight:700}
+.logo svg{border-radius:8px}
+
+
+.slides{
+  display:flex; gap:20px;
+  overflow-x:auto; overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  padding:16px 0;
+  touch-action:pan-x pan-y;
+  -webkit-overflow-scrolling:touch;
+}
+.slide{
+  scroll-snap-align:start;
+  flex:0 0 100%;
+  padding:0 16px 64px;
+}
+h1{font-size:20px; margin:8px 4px 16px}
+h2{font-size:16px; margin:0 0 12px}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
+
+.grid{
+  display:grid; gap:12px; grid-template-columns:1fr 1fr;
+}
+.row{display:flex; gap:8px}
+.grid .row{grid-column:1/-1}
+.url-row input{flex:1}
+
+label input[type="text"], label input[type="url"], label select, input[type="number"]{
+  padding:12px; border:1px solid var(--border); border-radius:12px; background:#fff; font-size:16px;
+  -webkit-user-select:text;
+  user-select:text;
+}
+
+.btn{
+  padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer;
+}
+.btn.small{padding:8px 10px; font-size:14px}
+.btn.primary{background:var(--primary); border-color:var(--primary); color:#fff}
+.btn.danger{background:var(--danger); border-color:var(--danger); color:#fff}
+.btn:disabled{opacity:.5; pointer-events:none}
+.file-btn{position:relative; overflow:hidden}
+
+/* Switches type MUI */
+.mui-switch{
+  display:flex; align-items:center; gap:8px; cursor:pointer;
+}
+.mui-switch input{
+  appearance:none;
+  width:42px; height:24px;
+  background:#ccc;
+  border-radius:12px;
+  position:relative;
+  outline:none;
+  transition:background .2s;
+  cursor:pointer;
+}
+.mui-switch input::before{
+  content:"";
+  position:absolute;
+  top:2px; left:2px;
+  width:20px; height:20px;
+  background:#fff;
+  border-radius:50%;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);
+  transition:transform .2s;
+}
+.mui-switch input:checked{background:var(--primary);}
+.mui-switch input:checked::before{transform:translateX(18px);}
+.grid label.mui-switch{flex-direction:row;}
+
+.now-meta{display:flex; flex-direction:column; gap:4px; margin-bottom:10px; align-items:center}
+.now-meta .title{font-weight:700}
+.now-meta .url{font-size:12px; color:var(--muted); word-break:break-all}
+
+.controls{display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; margin:8px 0}
+.muted{color:var(--muted); font-size:12px}
+
+.extras{display:flex; flex-direction:column; gap:10px; margin-top:8px}
+.extras .mui-switch{width:100%; justify-content:space-between}
+
+.player-area{display:flex; flex-direction:column; gap:16px}
+.player-area .player-card{
+  position:relative;
+  background: var(--player-bg);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:16px;
+  min-height:50vh;
+}
+.log-box{width:100%; font-size:12px; max-height:180px; overflow:auto; overflow-wrap:anywhere}
+.log-box h2{margin:0 0 8px; font-size:14px}
+.log-box pre{white-space:pre-wrap}
+.log-entries{display:flex; flex-direction:column; gap:4px}
+#copyLog{margin-top:8px}
+
+.stream-list, .manage-list{
+  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;
+}
+.item{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:12px; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm);
+}
+.item.current{background:#e6ecf5}
+.item .meta{display:flex; flex-direction:column}
+.item .name{font-weight:600}
+.item .sub{font-size:12px; color:var(--muted)}
+.item .actions{display:flex; gap:6px}
+.badge{font-size:11px; padding:2px 8px; border-radius:999px; background:var(--primary); color:#fff}
+
+.log-badge{
+  position:absolute;
+  top:8px; right:8px;
+  border:none;
+  border-radius:999px;
+  background:var(--primary);
+  color:#fff;
+  padding:2px 8px;
+  cursor:pointer;
+  font-size:11px;
+}
+.log-badge.on{background:#3b82f6}
+
+.manage-list .item .left{display:flex; align-items:center; gap:10px}
+
+.drag-btn, .fav-btn, .edit-btn, .del-btn, .up-btn, .down-btn, .play-btn{
+  background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px; cursor:pointer;
+}
+
+.stream-list .play-btn{
+  width:40px; height:40px; border-radius:50%; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+}
+
+#playPause{
+  width:80px; height:80px; border-radius:50%; padding:0;
+  display:flex; align-items:center; justify-content:center; font-size:32px;
+}
+
+.eq{display:flex; align-items:flex-end; gap:2px; width:16px; height:16px; margin-right:4px;}
+.eq span{flex:1; background:var(--primary); transform-origin:bottom; animation:eq 1s infinite ease-in-out;}
+.eq span:nth-child(2){animation-delay:.2s}
+.eq span:nth-child(3){animation-delay:.4s}
+
+@keyframes eq{
+  0%,100%{transform:scaleY(.3)}
+  50%{transform:scaleY(1)}
+}
+
+.app-footer{
+  position:sticky; bottom:0; padding:8px 0 14px;
+  background:var(--primary);
+}
+.pager{display:flex; justify-content:space-around; gap:6px}
+.pager button{
+  background:none; border:none; padding:6px; color:#fff; opacity:.6; cursor:pointer;
+}
+.pager button.active{opacity:1}
+.pager button svg{width:24px; height:24px; display:block;}
+
+@media (max-width:560px){
+  .grid{grid-template-columns:1fr}
+}
+
+@media (max-width:480px){
+  .slides{gap:10px}
+  .slide{padding:0 8px 64px}
+  .player-area{gap:8px}
+}
+
+.compact .item{padding:10px}
+
