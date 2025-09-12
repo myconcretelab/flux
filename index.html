@@ -19,9 +19,10 @@
   <!-- Empêche zoom à deux doigts pendant le swipe horizontal -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 </head>
-<body>
+  <body>
   <header class="app-header">
-    <div class="logo">
+    <div class="container">
+      <div class="logo">
       <!-- petit logo pour une belle capture d'icône -->
       <svg width="24" height="24" viewBox="0 0 128 128" aria-hidden="true">
         <rect rx="24" width="128" height="128" fill="#f4f6f8"></rect>
@@ -29,10 +30,11 @@
         <path d="M82 64c0 9.94-8.06 18-18 18s-18-8.06-18-18 8.06-18 18-18 18 8.06 18 18z" fill="#fff" opacity=".9"></path>
       </svg>
       <span>StreamDeck</span>
+      </div>
     </div>
   </header>
 
-  <main id="slides" class="slides" tabindex="0" aria-label="Panneaux glissables">
+  <main id="slides" class="slides container" tabindex="0" aria-label="Panneaux glissables">
     <!-- Slide 1: Lecteur -->
     <section class="slide" aria-labelledby="player-title">
       <h1 id="player-title">Lecteur</h1>
@@ -144,8 +146,7 @@
         <label class="mui-switch"><input type="checkbox" id="tryHttp"> Essayer le HTTP si HTTPS échoue</label>
         <p class="muted">
           Sur une page <strong>HTTPS</strong>, les flux <code>http://</code> sont bloqués par iOS.
-          Servez cette appli en <strong>HTTP</strong> (réseau local) pour lire ces flux, ou utilisez le bouton
-          “Ouvrir dans Safari” proposé en cas d’échec.
+          Servez cette appli en <strong>HTTP</strong> (réseau local) pour lire ces flux.
         </p>
       </div>
 
@@ -155,6 +156,9 @@
         <label class="mui-switch"><input type="checkbox" id="haptics"> Retour haptique (si dispo)</label>
         <label class="mui-switch"><input type="checkbox" id="autoResume"> Reprendre automatiquement le dernier flux</label>
         <label class="mui-switch"><input type="checkbox" id="showLockInfo"> Afficher titre sur l’écran verrouillé</label>
+        <label>Couleur du lecteur
+          <input id="playerBgColor" type="color" value="#f7f8fa" />
+        </label>
       </div>
 
       <div class="card">
@@ -167,6 +171,7 @@
   </main>
 
   <footer class="app-footer">
+    <div class="container">
     <nav class="pager" id="pager">
       <button id="toPlayer" aria-label="Lecteur" class="active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -187,6 +192,7 @@
         </svg>
       </button>
     </nav>
+    </div>
   </footer>
 
   <script src="app.js"></script>

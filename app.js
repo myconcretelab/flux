@@ -42,6 +42,7 @@
   const tryHttp = $('#tryHttp');
   const compactList = $('#compactList');
   const haptics = $('#haptics');
+  const playerBgColor = $('#playerBgColor');
 
   const seedDemo = $('#seedDemo');
   const nukeAll = $('#nukeAll');
@@ -49,8 +50,6 @@
 
   const sleepMinutes = $('#sleepMinutes');
   const sleepLeft = $('#sleepLeft');
-
-  const linkIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
   // App state
   let streams = [];
@@ -60,7 +59,8 @@
     tryHttp: false,
     compactList: false,
     haptics: true,
-    useSSE: true // utilise l’endpoint SSE par défaut
+    useSSE: true, // utilise l’endpoint SSE par défaut
+    playerBg: null
   });
   let lastId = load('lastId_v1', null);
   let sleepTimer = null;
@@ -81,6 +81,17 @@
   compactList.checked = !!settings.compactList;
   haptics.checked = !!settings.haptics;
   document.body.classList.toggle('compact', settings.compactList);
+
+  // Couleur de fond du lecteur
+  function applyPlayerBg(){
+    if (settings.playerBg){
+      document.documentElement.style.setProperty('--player-bg', settings.playerBg);
+    } else {
+      document.documentElement.style.removeProperty('--player-bg');
+    }
+  }
+  applyPlayerBg();
+  if (playerBgColor) playerBgColor.value = settings.playerBg || '#f7f8fa';
 
   toggleLog.addEventListener('click', () => {
     logBox.hidden = !logBox.hidden;
@@ -201,7 +212,6 @@
           <div class="actions">
             ${playing?'<span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>':''}
             <button class="play-btn" title="${playing?'Stop':'Lire'}" aria-label="${playing?'Stop':'Lire'}">${playing?'■':'▶︎'}</button>
-            <button class="open-btn" title="Ouvrir">${linkIcon}</button>
           </div>
         `;
         const btn = li.querySelector('.play-btn');
@@ -212,9 +222,6 @@
           } else {
             selectAndPlay(s.id);
           }
-        });
-        li.querySelector('.open-btn').addEventListener('click', ()=>{
-          window.location.href = s.url;
         });
         streamList.appendChild(li);
       });
@@ -539,7 +546,7 @@
     const cur = getCurrent();
     let extra = '';
     if (cur && /^http:\/\//i.test(cur.url)){
-      extra = '\nAstuce: servez cette page en HTTP (pas HTTPS) pour autoriser les flux http:// sur iOS, ou utilisez “Ouvrir dans Safari”.';
+      extra = '\nAstuce: servez cette page en HTTP (pas HTTPS) pour autoriser les flux http:// sur iOS.';
     }
     stopSSE();
     stopPolling();
@@ -643,13 +650,18 @@
     document.body.classList.toggle('compact', settings.compactList);
   });
   haptics.addEventListener('change', ()=>{ settings.haptics = haptics.checked; persistAll(); });
+  playerBgColor?.addEventListener('input', ()=>{
+    settings.playerBg = playerBgColor.value;
+    persistAll();
+    applyPlayerBg();
+  });
 
   // ------- Seed / Reset -------
   seedDemo.addEventListener('click', ()=>{ seedDemoData(true); renderLists(); alert('Exemples ajoutés.'); });
   nukeAll.addEventListener('click', ()=>{
     if (confirm('Tout réinitialiser (flux + réglages) ?')){
       localStorage.clear();
-      streams = []; settings = { autoResume:true, showLockInfo:true, tryHttp:false, compactList:false, haptics:true, useSSE:true };
+      streams = []; settings = { autoResume:true, showLockInfo:true, tryHttp:false, compactList:false, haptics:true, useSSE:true, playerBg:null };
       lastId = null;
       saveStreams();
       renderLists();
