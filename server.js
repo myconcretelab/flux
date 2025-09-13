@@ -2,8 +2,6 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
-const fssync = require('fs');
-const path = require('path');
 const icy = require('icy');
 const { http, https } = require('follow-redirects');
 const meta = require('./radio-metadata-utils'); // ← ta mini-lib centralisée (ICY, Icecast, RF, AzuraCast, etc.)
@@ -11,14 +9,9 @@ const meta = require('./radio-metadata-utils'); // ← ta mini-lib centralisée 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STREAM_FILE = './streams.json';
-const HAS_DIST = fssync.existsSync(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 
 app.use(cors());
 app.use(express.json());
-// Servez en priorité le build React si présent, sinon les fichiers statiques racine
-if (HAS_DIST) {
-  app.use(express.static(path.join(__dirname, 'frontend', 'dist')));
-}
 app.use(express.static(__dirname));
 
 /* -------------------------- Helpers -------------------------- */
@@ -178,17 +171,6 @@ app.get('/api/metadata/live', async (req, res) => {
 
   // Kill request si le client coupe avant d’avoir établi la réponse
   req.on('close', () => { try { streamReq.destroy(); } catch {} });
-});
-
-/* -------------------------- SPA fallback (Vite build) -------------------------- */
-// Après les routes /api, servir l'index du build si présent.
-// Si aucun build n'est présent, on renvoie un message explicite.
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
-  if (HAS_DIST) {
-    return res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
-  }
-  return res.status(404).send('Build Vite manquant. Exécutez "npm run build" dans le dossier frontend.');
 });
 
 /* -------------------------- Boot -------------------------- */
