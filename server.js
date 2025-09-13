@@ -180,15 +180,15 @@ app.get('/api/metadata/live', async (req, res) => {
   req.on('close', () => { try { streamReq.destroy(); } catch {} });
 });
 
-/* -------------------------- SPA fallback (React) -------------------------- */
-// Après les routes /api, servir l'index du build si présent
+/* -------------------------- SPA fallback (Vite build) -------------------------- */
+// Après les routes /api, servir l'index du build si présent.
+// Si aucun build n'est présent, on renvoie un message explicite.
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   if (HAS_DIST) {
     return res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
   }
-  // Fallback vers l'index legacy si pas de build
-  return res.sendFile(path.join(__dirname, 'index.html'));
+  return res.status(404).send('Build Vite manquant. Exécutez "npm run build" dans le dossier frontend.');
 });
 
 /* -------------------------- Boot -------------------------- */

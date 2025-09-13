@@ -20,7 +20,7 @@ export default function App() {
 
     const audio = $('#audio') as HTMLAudioElement;
     const nowName = $('#nowName') as HTMLElement;
-    const nowUrl = $('#nowUrl') as HTMLElement;
+    const deezerBtn = $('#deezerBtn') as HTMLAnchorElement;
     const nowMeta = $('#nowMeta') as HTMLElement;
     const playPause = $('#playPause') as HTMLButtonElement;
     const autoResume = $('#autoResume') as HTMLInputElement;
@@ -337,7 +337,15 @@ export default function App() {
       if (!meta) return;
       const now = Date.now();
       if (meta === currentMeta && (now - lastShownAt) < 60_000) return;
-      currentMeta = meta; lastShownAt = now; if (nowMeta) nowMeta.textContent = meta; addLog('Meta : ' + meta);
+      currentMeta = meta; lastShownAt = now;
+      if (nowMeta) nowMeta.textContent = meta;
+      // Active le bouton Deezer avec une recherche sur le titre/meta courant
+      if (deezerBtn){
+        const q = encodeURIComponent(meta);
+        deezerBtn.href = `https://www.deezer.com/search/${q}`;
+        deezerBtn.hidden = false;
+      }
+      addLog('Meta : ' + meta);
     }
     function getWaitMsForCurrent(){
       const cur = getCurrent(); if (!cur) return undefined;
@@ -380,6 +388,7 @@ export default function App() {
     audio.addEventListener('play', ()=>{
       if (playPause){ playPause.textContent = '■'; playPause.setAttribute('aria-label','Stop'); }
       setMediaSession(); currentMeta = ''; lastShownAt = 0; if (nowMeta) nowMeta.textContent = '';
+      if (deezerBtn){ deezerBtn.hidden = true; deezerBtn.removeAttribute('href'); }
       if (settings.useSSE){ startSSE(); } else { startPolling(); }
       renderLists();
     });
@@ -394,7 +403,11 @@ export default function App() {
     function selectAndPlay(id: string){
       const s = streams.find(x=>x.id===id); if (!s) return;
       lastId = s.id; save('lastId_v1', lastId);
-      if (nowName) nowName.textContent = s.name; if (nowUrl) nowUrl.textContent = s.url; audio.src = s.url; if (playPause) playPause.disabled = false; audio.play().catch(showPlayError);
+      if (nowName) nowName.textContent = s.name;
+      audio.src = s.url;
+      if (deezerBtn){ deezerBtn.hidden = true; deezerBtn.removeAttribute('href'); }
+      if (playPause) playPause.disabled = false;
+      audio.play().catch(showPlayError);
     }
 
     function setMediaSession(){
@@ -468,7 +481,6 @@ export default function App() {
         const cur = getCurrent();
         if (cur){
           nowName!.textContent = cur.name;
-          nowUrl!.textContent = cur.url;
           audio.src = cur.url;
           playPause!.disabled = false;
         }

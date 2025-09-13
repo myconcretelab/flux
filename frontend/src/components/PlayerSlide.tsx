@@ -8,7 +8,6 @@ export default function PlayerSlide() {
           <button id="toggleLog" className="log-badge" aria-label="Afficher le journal">journal</button>
           <div className="now-meta">
             <div className="title" id="nowName">Aucun flux</div>
-            <div className="url" id="nowUrl">—</div>
             <div className="meta muted" id="nowMeta"></div>
           </div>
 
@@ -16,9 +15,22 @@ export default function PlayerSlide() {
 
           <div className="controls">
             <button id="playPause" className="btn primary" disabled aria-label="Lecture">▶︎</button>
+            <a id="deezerBtn" className="btn small" href="#" target="_blank" rel="noopener noreferrer" hidden>
+              Ouvrir dans Deezer
+            </a>
           </div>
+        </div>
+        <div id="logBox" className="card log-box" hidden>
+          <h2>Journal</h2>
+          <div id="logEntries" className="log-entries"></div>
+          <button id="copyLog" className="btn small">Copier</button>
+        </div>
+      </div>
 
-          <div className="extras">
+      <div className="streams">
+        <div className="card-head">
+          <h2>Vos flux</h2>
+          <div className="row">
             <div className="sleep">
               <label htmlFor="sleepMinutes">Sleep</label>
               <input id="sleepMinutes" type="range" min="0" max="90" step="5" defaultValue="0" list="sleepMarks" />
@@ -33,19 +45,8 @@ export default function PlayerSlide() {
               </datalist>
               <span id="sleepLeft" className="muted"></span>
             </div>
+            <button id="addQuick" className="btn small">+ ajout rapide</button>
           </div>
-        </div>
-        <div id="logBox" className="card log-box" hidden>
-          <h2>Journal</h2>
-          <div id="logEntries" className="log-entries"></div>
-          <button id="copyLog" className="btn small">Copier</button>
-        </div>
-      </div>
-
-      <div className="streams">
-        <div className="card-head">
-          <h2>Vos flux</h2>
-          <button id="addQuick" className="btn small">+ ajout rapide</button>
         </div>
         <ul id="streamList" className="stream-list" aria-live="polite"></ul>
       </div>

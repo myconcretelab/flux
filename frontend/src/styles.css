@@ -24,8 +24,6 @@ body{
   font-family: Roboto, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
   color:var(--fg);
   background:var(--bg);
-  -webkit-user-select:none;
-  user-select:none;
 }
 
 /* Contrainte de largeur sur ordinateur tout en gardant le scroll page */
@@ -128,7 +126,7 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .extras{display:flex; flex-direction:column; gap:10px; margin-top:8px}
 .extras .mui-switch{width:100%; justify-content:space-between}
 
-.player-area{display:flex; flex-direction:column; gap:16px}
+.player-area{display:flex; flex-direction:column; gap:16px; margin-bottom:24px}
 .player-area .player-card{
   position:relative;
   background: var(--player-bg);
