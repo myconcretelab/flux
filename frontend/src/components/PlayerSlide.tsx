@@ -42,7 +42,7 @@ export default function PlayerSlide() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="streams">
         <div className="card-head">
           <h2>Vos flux</h2>
           <button id="addQuick" className="btn small">+ ajout rapide</button>
@@ -52,4 +52,3 @@ export default function PlayerSlide() {
     </section>
   );
 }
-

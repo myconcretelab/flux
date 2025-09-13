@@ -12,13 +12,16 @@
   --radius-sm:12px;
   /* Couleur de fond du lecteur (configurable) */
   --player-bg: var(--card);
+  /* Couleurs dérivées pour lisibilité sur le lecteur */
+  --player-fg: var(--fg);
+  --player-muted: var(--muted);
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font-family: Roboto, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";
   color:var(--fg);
   background:var(--bg);
   -webkit-user-select:none;
@@ -68,7 +71,7 @@ h2{font-size:16px; margin:0 0 12px}
 .grid{
   display:grid; gap:12px; grid-template-columns:1fr 1fr;
 }
-.row{display:flex; gap:8px}
+.row{display:flex; gap:12px}
 .grid .row{grid-column:1/-1}
 .url-row input{flex:1}
 
@@ -129,6 +132,7 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .player-area .player-card{
   position:relative;
   background: var(--player-bg);
+  color: var(--player-fg);
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -137,6 +141,8 @@ label input[type="text"], label input[type="url"], label select, input[type="num
   gap:16px;
   min-height:50vh;
 }
+.player-area .player-card .muted,
+.player-area .player-card .url{ color: var(--player-muted); }
 .log-box{width:100%; font-size:12px; max-height:180px; overflow:auto; overflow-wrap:anywhere}
 .log-box h2{margin:0 0 8px; font-size:14px}
 .log-box pre{white-space:pre-wrap}
@@ -144,11 +150,11 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 #copyLog{margin-top:8px}
 
 .stream-list, .manage-list{
-  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;
+  list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px;
 }
 .item{
   display:flex; align-items:center; justify-content:space-between;
-  gap:10px; padding:12px; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm);
+  gap:12px; padding:14px; background:#fff; border:1px solid var(--border); border-radius:var(--radius-sm);
 }
 .item.current{background:#e6ecf5}
 .item .meta{display:flex; flex-direction:column}
@@ -207,6 +213,12 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 .pager button.active{opacity:1}
 .pager button svg{width:24px; height:24px; display:block;}
 
+/* Section "Vos flux": sans carte, angles carrés + espacements aérés */
+.streams{margin-top:8px}
+.streams .card-head{margin-bottom:12px}
+.stream-list .item{ border-radius:0; }
+
+
 @media (max-width:560px){
   .grid{grid-template-columns:1fr}
 }
@@ -218,4 +230,3 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 }
 
 .compact .item{padding:10px}
-

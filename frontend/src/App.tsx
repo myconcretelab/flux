@@ -93,11 +93,47 @@ export default function App() {
     document.body.classList.toggle('compact', !!settings.compactList);
 
     function applyPlayerBg(){
+      // Applique la couleur de fond et calcule un contraste texte/fond lisible
+      const root = document.documentElement;
       if (settings.playerBg){
-        document.documentElement.style.setProperty('--player-bg', settings.playerBg);
+        root.style.setProperty('--player-bg', settings.playerBg);
+        const fg = pickReadableText(settings.playerBg);
+        root.style.setProperty('--player-fg', fg);
+        // Teinte atténuée cohérente selon le contraste choisi
+        const muted = fg === '#ffffff' ? 'rgba(255,255,255,0.8)' : '#6b7280';
+        root.style.setProperty('--player-muted', muted);
       } else {
-        document.documentElement.style.removeProperty('--player-bg');
+        root.style.removeProperty('--player-bg');
+        root.style.removeProperty('--player-fg');
+        root.style.removeProperty('--player-muted');
       }
+    }
+
+    // Choisit noir ou blanc selon le meilleur contraste (WCAG)
+    function pickReadableText(bgHex: string){
+      const bg = hexToRgb(bgHex);
+      if (!bg) return '#111827';
+      const contrastBlack = contrastRatio(luminance(bg), luminance({r:0,g:0,b:0}));
+      const contrastWhite = contrastRatio(luminance(bg), luminance({r:255,g:255,b:255}));
+      return contrastWhite >= contrastBlack ? '#ffffff' : '#111827';
+    }
+    function hexToRgb(hex: string): {r:number; g:number; b:number} | null{
+      const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
+      if (!m) return null;
+      return { r: parseInt(m[1],16), g: parseInt(m[2],16), b: parseInt(m[3],16) };
+    }
+    function srgbToLinear(c:number){
+      const s = c/255;
+      return s <= 0.03928 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+    }
+    function luminance(rgb:{r:number; g:number; b:number}){
+      const r = srgbToLinear(rgb.r), g = srgbToLinear(rgb.g), b = srgbToLinear(rgb.b);
+      return 0.2126*r + 0.7152*g + 0.0722*b;
+    }
+    function contrastRatio(L1:number, L2:number){
+      const a = Math.max(L1,L2) + 0.05;
+      const b = Math.min(L1,L2) + 0.05;
+      return a/b;
     }
     applyPlayerBg();
     if (playerBgColor) playerBgColor.value = settings.playerBg || '#f7f8fa';
