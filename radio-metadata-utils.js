@@ -1,11 +1,10 @@
 /* radio-metadata-utils.js
- * Dépendances: npm i icy follow-redirects node-internet-radio
+ * Dépendances: npm i icy follow-redirects
  * Node 18+ (fetch global)
  */
 /* eslint-disable no-console */
 const icy = require('icy');
 const { http, https } = require('follow-redirects');
-const radio = require('node-internet-radio');
 
 /* -------------------- Helpers HTTP -------------------- */
 
@@ -271,28 +270,6 @@ function getIcyOnce(url, { timeoutMs = 15000 } = {}) {
   });
 }
 
-/* -------------------- Fallback: node-internet-radio -------------------- */
-
-function getNodeInternetRadio(url, { timeoutMs = 8000 } = {}) {
-  return new Promise(resolve => {
-    let settled = false;
-    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
-    const t = setTimeout(() => done({ ok:false, source:'node-internet-radio', reason:'timeout' }), timeoutMs);
-    try {
-      radio.getStationInfo(url, (err, station) => {
-        clearTimeout(t);
-        if (err || !station) return done({ ok:false, source:'node-internet-radio', reason: err?.message || 'no-station' });
-        const title = station.title || station.currentTrack || station.song || station.streamTitle || null;
-        if (title) return done({ ok:true, source:'node-internet-radio', StreamTitle: String(title), details: station });
-        return done({ ok:false, source:'node-internet-radio', reason:'no-title' });
-      });
-    } catch (e) {
-      clearTimeout(t);
-      return done({ ok:false, source:'node-internet-radio', reason: e?.message || 'exception' });
-    }
-  });
-}
-
 /* -------------------- Routeur “meilleure chance” -------------------- */
 
 function isLikelyAzura(url){
@@ -356,12 +333,6 @@ async function getBestMetadata(url, { waitMs = 90000, allowTryMp3 = true } = {})
     if (title) return { ok:true, source:'generic-nowplaying', StreamTitle: title };
   } catch {}
 
-  // 5) Fallback via node-internet-radio
-  try {
-    const nir = await getNodeInternetRadio(url, { timeoutMs: Math.min(8000, waitMs) });
-    if (nir.ok) return nir;
-  } catch {}
-
   return { ok:false, source:'auto', reason:'no-title-from-all' };
 }
 
@@ -375,7 +346,6 @@ module.exports = {
   getRadiojar,
   getShoutcast,
   getRadioFrance,
-  getNodeInternetRadio,
   // routeur
   getBestMetadata,
 };
