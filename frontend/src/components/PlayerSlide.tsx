@@ -1,3 +1,5 @@
+import deezerLogo from '../assets/Logo_Deezer_2023.svg';
+
 export default function PlayerSlide() {
   return (
     <section className="slide" aria-labelledby="player-title">
@@ -15,10 +17,10 @@ export default function PlayerSlide() {
 
           <div className="controls">
             <button id="playPause" className="btn primary" disabled aria-label="Lecture">▶︎</button>
-            <a id="deezerBtn" className="btn small" href="#" target="_blank" rel="noopener noreferrer" hidden>
-              Ouvrir dans Deezer
-            </a>
           </div>
+          <a id="deezerBtn" className="btn small deezer-cta" href="#" target="_blank" rel="noopener noreferrer" aria-label="Ouvrir dans Deezer" hidden>
+            <img src={deezerLogo} alt="Deezer" className="deezer-logo" />
+          </a>
         </div>
         <div id="logBox" className="card log-box" hidden>
           <h2>Journal</h2>
@@ -29,7 +31,6 @@ export default function PlayerSlide() {
 
       <div className="streams">
         <div className="card-head">
-          <h2>Vos flux</h2>
           <div className="row">
             <div className="sleep">
               <label htmlFor="sleepMinutes">Sleep</label>
