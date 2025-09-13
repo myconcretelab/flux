@@ -1,5 +1,9 @@
 /* Adaptation du app.js legacy pour initialisation dans React */
+// Évite les doubles initialisations (React StrictMode en dev)
+let __legacyCleanup: null | (() => void) = null;
+
 export function initLegacyApp() {
+  if (__legacyCleanup) return __legacyCleanup;
   const VERSION = '1.1.0';
   const els = (sel: string) => document.querySelectorAll(sel) as NodeListOf<HTMLElement>;
   const $ = (sel: string) => document.querySelector(sel) as HTMLElement | null;
@@ -437,7 +441,12 @@ export function initLegacyApp() {
     }
   });
 
-  // retourne une fonction de cleanup basique
-  return () => { try{ es?.close(); }catch{} if (metaTimer) clearInterval(metaTimer); if (sleepTimer) clearInterval(sleepTimer); };
+  // retourne une fonction de cleanup basique (idempotente)
+  __legacyCleanup = () => {
+    try { es?.close(); } catch {}
+    es = null;
+    if (metaTimer) { clearInterval(metaTimer); metaTimer = null; }
+    if (sleepTimer) { clearInterval(sleepTimer); sleepTimer = null; }
+  };
+  return __legacyCleanup;
 }
-
