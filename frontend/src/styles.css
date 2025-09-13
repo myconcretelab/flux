@@ -143,7 +143,12 @@ label input[type="text"], label input[type="url"], label select, input[type="num
   /* Espace supplémentaire pour éviter le chevauchement avec le footer sticky */
   padding-bottom:64px;
 }
-.deezer-cta{ margin-top:auto; margin-bottom:8px; }
+.deezer-cta{
+  position:absolute;
+  left:50%;
+  bottom:8px;
+  transform:translateX(-50%);
+}
 .player-area .player-card .muted,
 .player-area .player-card .url{ color: var(--player-muted); }
 .log-box{width:100%; font-size:12px; max-height:180px; overflow:auto; overflow-wrap:anywhere}
