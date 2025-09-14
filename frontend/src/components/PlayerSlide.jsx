@@ -13,8 +13,6 @@ export default function PlayerSlide({
       aria-labelledby="player-title"
       sx={{ scrollSnapAlign: 'start', flex: '0 0 100%', px: { xs: '8px', sm: '16px' }, pb: '64px' }}
     >
-      <Typography id="player-title" component="h1" sx={{ fontSize: 20, my: '8px', mx: '4px' }}>Lecteur</Typography>
-
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: '8px', sm: '16px' }, mb: '24px' }}>
         <Card
           sx={{

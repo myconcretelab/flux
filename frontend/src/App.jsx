@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import AppHeader from './components/AppHeader'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 
@@ -449,8 +448,6 @@ export default function App() {
 
   return (
     <>
-      <AppHeader />
-
       <Slides
         slidesRef={slidesRef}
         playerProps={{
