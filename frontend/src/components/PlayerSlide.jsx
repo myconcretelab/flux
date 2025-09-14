@@ -38,7 +38,7 @@ export default function PlayerSlide({
               <Typography className="muted" sx={{ color: 'var(--player-muted)', fontSize: 12 }}>{nowMeta}</Typography>
             </Box>
 
-            <audio id="audio" ref={audioRef} preload="none" playsInline></audio>
+            <audio id="audio" ref={audioRef} preload="none" playsInline x-webkit-airplay="allow"></audio>
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', my: '8px' }}>
               <Button id="playPause" aria-label={playing ? 'Stop' : 'Lecture'} variant="contained" onClick={onPlayPause}

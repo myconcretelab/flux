@@ -221,10 +221,11 @@ export default function App() {
     const onPlay = () => {
       setPlaying(true); setNowMeta(''); setDeezerHref(''); addLog('Lecture démarrée')
       setMediaSession()
+      try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing' } catch {}
       const effUrl = (audioRef.current && audioRef.current.src) || (current && current.url) || ''
       if (settings.useSSE) startSSEFor(effUrl); else startPollingFor(effUrl)
     }
-    const onPause = () => { setPlaying(false); stopSSE(); stopPolling(); addLog('Lecture stoppée') }
+    const onPause = () => { setPlaying(false); stopSSE(); stopPolling(); addLog('Lecture stoppée'); try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused' } catch {} }
     const onError = () => { const err = a.error; addLog('Erreur audio', err ? { code: err.code } : {}) }
     const onLoadedMeta = () => addLog('Meta audio chargées', { duration: a.duration })
     const onCanPlay = () => addLog('Prêt à lire (canplay)')
@@ -270,6 +271,11 @@ export default function App() {
     navigator.mediaSession.setActionHandler('previoustrack', null)
     navigator.mediaSession.setActionHandler('nexttrack', null)
   }
+
+  // Enregistre les handlers Media Session dès qu’un flux est sélectionné
+  useEffect(() => {
+    setMediaSession()
+  }, [current, settings.showLockInfo])
 
   // Metadata (SSE / Polling)
   const sseRef = useRef(null)
