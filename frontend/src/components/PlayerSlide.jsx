@@ -6,6 +6,7 @@ export default function PlayerSlide({
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
+  onRefreshMetadata,
 }) {
   return (
     <Box
@@ -33,7 +34,21 @@ export default function PlayerSlide({
               journal
             </Button>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px', mb: '10px', alignItems: 'center' }}>
+            <Box
+              component="button"
+              type="button"
+              onClick={onRefreshMetadata}
+              title="Actualiser le titre en cours"
+              sx={{
+                display: 'flex', flexDirection: 'column', gap: '4px', mb: '10px', alignItems: 'center',
+                background: 'transparent', border: 'none', cursor: onRefreshMetadata ? 'pointer' : 'default', color: 'inherit', p: 0,
+                textAlign: 'center',
+                '&:focus-visible': {
+                  outline: '2px solid var(--primary)',
+                  outlineOffset: '4px'
+                }
+              }}
+            >
               <Typography sx={{ fontWeight: 700 }}>{nowName}</Typography>
               <Typography className="muted" sx={{ color: 'var(--player-muted)', fontSize: 12 }}>{nowMeta}</Typography>
             </Box>

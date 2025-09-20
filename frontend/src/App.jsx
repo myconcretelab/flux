@@ -304,21 +304,45 @@ export default function App() {
     stopPolling(); refreshMetadataOnceFor(url); pollRef.current = setInterval(() => refreshMetadataOnceFor(url), 30000)
   }
   function startSSEFor(url) {
-    stopSSE(); if (!url) return
+    stopSSE(); stopPolling(); if (!url) return
     const wait = getWaitMsForCurrent();
     const q = new URLSearchParams({ url, forceHttp: String(!!settings.tryHttp) })
     if (wait) q.set('waitMs', String(wait))
     const sseUrl = '/api/metadata/live?' + q.toString(); addLog('Connexion SSE : ' + sseUrl)
     const es = new EventSource(sseUrl); sseRef.current = es
+    let startedPolling = false
+    const ensurePolling = (reason) => {
+      if (startedPolling) return
+      startedPolling = true
+      if (reason) addLog(reason)
+      startPollingFor(url)
+    }
     es.addEventListener('open', () => addLog('SSE ouvert'))
-    es.addEventListener('status', (e) => { try { const data = JSON.parse(e.data); addLog('SSE status', data); if (data?.StreamTitle) showMeta(data.StreamTitle); else setNowMeta((v) => v || '…') } catch {} })
+    es.addEventListener('status', (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        addLog('SSE status', data)
+        if (data?.StreamTitle) showMeta(data.StreamTitle)
+        else setNowMeta((v) => v || '…')
+        if (data?.icyMeta === false || data?.timedOut || data?.fallbackUsed) {
+          ensurePolling('Activation du polling (statut SSE)')
+        }
+      } catch {}
+    })
     es.addEventListener('metadata', (e) => { try { const data = JSON.parse(e.data); const meta = data?.StreamTitle || data?.title || data?.['icy-name']; if (meta) showMeta(meta) } catch {} })
-    es.addEventListener('end', () => { addLog('SSE terminé'); stopSSE(); startPollingFor(url) })
-    es.onerror = () => { addLog('SSE erreur (bascule en polling)'); stopSSE(); startPollingFor(url) }
+    es.addEventListener('end', () => { addLog('SSE terminé'); stopSSE(); ensurePolling(null) })
+    es.onerror = () => { addLog('SSE erreur (bascule en polling)'); stopSSE(); ensurePolling(null) }
   }
   function showMeta(meta) {
     setNowMeta(meta)
     try { setDeezerHref('https://www.deezer.com/search/' + encodeURIComponent(meta)) } catch {}
+  }
+
+  function manualRefreshMetadata() {
+    const effUrl = (audioRef.current && audioRef.current.src) || (current && current.url) || ''
+    if (!effUrl) return
+    addLog('Rafraîchissement manuel des métadonnées')
+    refreshMetadataOnceFor(effUrl)
   }
 
   // Sleep timer
@@ -465,6 +489,7 @@ export default function App() {
           playerList, lastId,
           onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
           onAddQuick: addQuickFromClipboard,
+          onRefreshMetadata: manualRefreshMetadata,
         }}
         libraryProps={{
           form, setForm,
