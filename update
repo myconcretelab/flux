@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Déterminer le répertoire racine du dépôt.
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$ROOT_DIR"
+
+echo "Mise à jour du dépôt..."
+git pull
+
+echo "Installation des dépendances et build du frontend..."
+cd "$ROOT_DIR/frontend"
+npm install
+npm run build
