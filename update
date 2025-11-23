@@ -11,5 +11,5 @@ git pull
 
 echo "Installation des dépendances et build du frontend..."
 cd "$ROOT_DIR/frontend"
-npm install
+npm install --include=optional
 npm run build
