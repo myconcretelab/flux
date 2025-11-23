@@ -3,7 +3,7 @@ import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 
 // Utils
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 
 function useLocalStorage(key, initialValue) {
   const [state, setState] = useState(() => {
@@ -78,6 +78,11 @@ function useLogs() {
 function useStreams(log) {
   const [streams, setStreams] = useState([])
 
+  const normalizeStream = (stream) => ({
+    ...stream,
+    category: stream?.category || null,
+  })
+
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -85,7 +90,7 @@ function useStreams(log) {
         const res = await fetch('/api/streams')
         const arr = await res.json()
         if (!mounted) return
-        if (Array.isArray(arr) && arr.length) setStreams(arr)
+        if (Array.isArray(arr) && arr.length) setStreams(arr.map(normalizeStream))
         else { const seeded = seedDemo(); setStreams(seeded); await save(seeded) }
       } catch (err) { console.error('Chargement des flux impossible', err) }
     })()
@@ -98,18 +103,19 @@ function useStreams(log) {
   }
   function seedDemo() {
     const presets = [
-      { id: cryptoRandom(), name: 'FIP hifi', url: 'http://icecast.radiofrance.fr/fip-hifi.aac', format: 'aac', favorite: true, notes: 'Radio France' },
-      { id: cryptoRandom(), name: 'FIP Rock', url: 'http://icecast.radiofrance.fr/fiprock-midfi.mp3', format: 'mp3', favorite: false, notes: 'Thématique' },
-      { id: cryptoRandom(), name: 'Radio Swiss Jazz', url: 'https://stream.srg-ssr.ch/m/rsj/aacp_96', format: 'aac', favorite: false, notes: 'AAC 96k' },
+      { id: cryptoRandom(), name: 'FIP hifi', url: 'http://icecast.radiofrance.fr/fip-hifi.aac', format: 'aac', favorite: true, notes: 'Radio France', category: 'Découverte' },
+      { id: cryptoRandom(), name: 'FIP Rock', url: 'http://icecast.radiofrance.fr/fiprock-midfi.mp3', format: 'mp3', favorite: false, notes: 'Thématique', category: 'Rock' },
+      { id: cryptoRandom(), name: 'Radio Swiss Jazz', url: 'https://stream.srg-ssr.ch/m/rsj/aacp_96', format: 'aac', favorite: false, notes: 'AAC 96k', category: 'Jazz' },
     ]
-    return presets
+    return presets.map(normalizeStream)
   }
   function cryptoRandom() { return (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))) }
 
   async function upsert(stream) {
     setStreams((prev) => {
       const idx = prev.findIndex((s) => s.id === stream.id)
-      const next = idx === -1 ? [...prev, stream] : prev.map((s, i) => i === idx ? stream : s)
+      const nextStream = normalizeStream(stream)
+      const next = idx === -1 ? [...prev, nextStream] : prev.map((s, i) => i === idx ? nextStream : s)
       save(next)
       return next
     })
@@ -194,6 +200,7 @@ export default function App() {
 
   const { streams, upsert, remove, move, toggleFav, setStreams } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
+  const [categoryFilter, setCategoryFilter] = useState('')
 
   // Player state
   const audioRef = useRef(null)
@@ -423,13 +430,13 @@ export default function App() {
   }
 
   // Form state
-  const emptyForm = { id: '', name: '', url: '', format: '', favorite: false, notes: '' }
+  const emptyForm = { id: '', name: '', url: '', format: '', favorite: false, notes: '', category: '' }
   const [form, setForm] = useState(emptyForm)
-  function loadToForm(s) { setForm({ id: s.id, name: s.name, url: s.url, format: s.format || '', favorite: !!s.favorite, notes: s.notes || '' }) }
+  function loadToForm(s) { setForm({ id: s.id, name: s.name, url: s.url, format: s.format || '', favorite: !!s.favorite, notes: s.notes || '', category: s.category || '' }) }
   function clearForm() { setForm(emptyForm) }
   async function submitForm(e) {
     e.preventDefault()
-    const data = { id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: form.format || null, favorite: !!form.favorite, notes: form.notes || null }
+    const data = { id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: form.format || null, favorite: !!form.favorite, notes: form.notes || null, category: form.category?.trim() || null }
     if (!data.name || !data.url) return
     await upsert(data); clearForm(); buzz()
   }
@@ -450,7 +457,15 @@ export default function App() {
   }
 
   // Derived lists
-  const playerList = useMemo(() => streams.slice().sort((a, b) => (Number(!!b.favorite) - Number(!!a.favorite)) || a.name.localeCompare(b.name)), [streams])
+  const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
+  const playerList = useMemo(() => {
+    const filtered = categoryFilter ? streams.filter((s) => (s.category || '') === categoryFilter) : streams
+    return filtered.slice().sort((a, b) => (Number(!!b.favorite) - Number(!!a.favorite)) || a.name.localeCompare(b.name))
+  }, [streams, categoryFilter])
+
+  useEffect(() => {
+    if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
+  }, [streams, categoryFilter])
 
   return (
     <>
@@ -463,6 +478,8 @@ export default function App() {
           logOpen, setLogOpen, logEntries, copyLog,
           sleepMinutes, setSleepMinutes, sleepLeft,
           playerList, lastId,
+          categories: availableCategories,
+          categoryFilter, setCategoryFilter,
           onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
           onAddQuick: addQuickFromClipboard,
         }}
@@ -470,6 +487,7 @@ export default function App() {
           form, setForm,
           onSubmit: submitForm, onClear: clearForm, onPaste: pasteFromClipboard,
           manageList: streams,
+          categories: availableCategories,
           onMove: move,
           onToggleFav: (id) => { toggleFav(id); buzz() },
           onEdit: loadToForm,
@@ -481,6 +499,7 @@ export default function App() {
         settingsProps={{
           settings,
           setSettings,
+          version: VERSION,
           onSeed: () => { setStreams((prev) => prev.length ? prev : prev); alert('Exemples ajoutés.') },
           onNuke: () => {
             if (confirm('Tout réinitialiser (flux + réglages) ?')) {
