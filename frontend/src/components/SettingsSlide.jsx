@@ -1,6 +1,6 @@
 import { Box, Button, Card, CardContent, Typography } from '../mui'
 
-export default function SettingsSlide({ settings, setSettings, onSeed, onNuke }) {
+export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, version }) {
   return (
     <Box component="section" aria-labelledby="settings-title" sx={{ scrollSnapAlign: 'start', flex: '0 0 100%', px: { xs: '8px', sm: '16px' }, pb: '64px' }}>
       <Typography id="settings-title" component="h1" sx={{ fontSize: 20, my: '8px', mx: '4px' }}>Options avancées</Typography>
@@ -38,7 +38,7 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke })
             <Button size="small" onClick={onSeed} sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff' }}>Insérer des exemples (FIP, etc.)</Button>
             <Button size="small" onClick={onNuke} sx={{ background: 'var(--danger)', color: '#fff' }}>Tout réinitialiser</Button>
           </Box>
-          <Typography className="muted" sx={{ color: 'var(--muted)', fontSize: 12, mt: 1 }}>Version <span>1.2.0</span></Typography>
+          <Typography className="muted" sx={{ color: 'var(--muted)', fontSize: 12, mt: 1 }}>Version <span>{version}</span></Typography>
         </CardContent>
       </Card>
     </Box>

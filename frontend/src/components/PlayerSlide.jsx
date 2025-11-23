@@ -1,11 +1,12 @@
 import deezerLogo from '../assets/Logo_Deezer_2023.svg'
-import { Box, Button, Card, CardContent, Typography, IconButton } from '../mui'
+import { Box, Button, Card, CardContent, Typography, IconButton, Select, MenuItem } from '../mui'
 
 export default function PlayerSlide({
   nowName, nowMeta, playing, onPlayPause, audioRef, deezerHref,
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
+  categories, categoryFilter, setCategoryFilter,
 }) {
   return (
     <Box
@@ -86,7 +87,7 @@ export default function PlayerSlide({
       </Box>
 
       <Box sx={{ mt: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '12px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', mb: '12px', p: { xs: '8px 10px', sm: 0 }, background: { xs: '#fff', sm: 'transparent' }, borderRadius: '14px', border: { xs: '1px solid var(--border)', sm: 'none' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <label htmlFor="sleepMinutes">Sleep</label>
             <input id="sleepMinutes" type="range" min="0" max="90" step="5" value={sleepMinutes} onChange={(e) => setSleepMinutes(Number(e.target.value || 0))} list="sleepMarks" />
@@ -103,6 +104,16 @@ export default function PlayerSlide({
           </Box>
           <Button id="addQuick" onClick={onAddQuick} size="small" sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff' }}>+ ajout rapide</Button>
         </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', mb: '10px' }}>
+          <Typography component="h2" sx={{ fontSize: 16, m: 0 }}>Vos flux</Typography>
+          <Select size="small" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} displayEmpty
+            sx={{ minWidth: 180, background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}>
+            <MenuItem value=""><em>Toutes les catégories</em></MenuItem>
+            {categories.map((cat) => (
+              <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+            ))}
+          </Select>
+        </Box>
         <Box component="ul" aria-live="polite" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {playerList.map((s) => {
             const isCurrent = s.id === lastId
@@ -113,7 +124,15 @@ export default function PlayerSlide({
                   <Box className="name" sx={{ fontWeight: 600 }}>
                     {s.name} {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block', ml: 1 }}>★</Box> : null}
                   </Box>
-                  <Box className="sub" sx={{ fontSize: 12, color: 'var(--muted)' }}>{s.url}</Box>
+                  <Box className="sub" sx={{ fontSize: 12, color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <span>{s.url}</span>
+                    <span>{s.category ? <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: 12 }}>
+                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '4px', px: '8px', py: '2px', borderRadius: 999, background: '#f2f4f7', color: '#111827' }}>
+                        📁 {s.category}
+                      </Box>
+                      {s.format ? <Box component="span" sx={{ px: '8px', py: '2px', borderRadius: 999, background: '#eef2ff', color: '#312e81' }}>{String(s.format).toUpperCase()}</Box> : null}
+                    </Box> : (s.format ? <Box component="span" sx={{ px: '8px', py: '2px', borderRadius: 999, background: '#eef2ff', color: '#312e81', width: 'fit-content' }}>{String(s.format).toUpperCase()}</Box> : null)}</span>
+                  </Box>
                 </Box>
                 <Box className="actions" sx={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   {isPlaying ? (
