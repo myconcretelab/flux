@@ -6,7 +6,7 @@ export default function PlayerSlide({
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
-  categories, categoryFilter, setCategoryFilter,
+  categories, categoryFilter, setCategoryFilter, uncategorizedValue,
 }) {
   return (
     <Box
@@ -109,6 +109,7 @@ export default function PlayerSlide({
           <Select size="small" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} displayEmpty
             sx={{ minWidth: 180, background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}>
             <MenuItem value=""><em>Toutes les catégories</em></MenuItem>
+            <MenuItem value={uncategorizedValue}>Sans catégorie</MenuItem>
             {categories.map((cat) => (
               <MenuItem key={cat} value={cat}>{cat}</MenuItem>
             ))}

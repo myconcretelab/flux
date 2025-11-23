@@ -200,7 +200,8 @@ export default function App() {
 
   const { streams, upsert, remove, move, toggleFav, setStreams } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const UNCATEGORIZED = '__UNCATEGORIZED__'
+  const [categoryFilter, setCategoryFilter] = useLocalStorage('categoryFilter_v1', '')
 
   // Player state
   const audioRef = useRef(null)
@@ -459,11 +460,16 @@ export default function App() {
   // Derived lists
   const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
   const playerList = useMemo(() => {
-    const filtered = categoryFilter ? streams.filter((s) => (s.category || '') === categoryFilter) : streams
+    const filtered = categoryFilter === UNCATEGORIZED
+      ? streams.filter((s) => !s.category)
+      : categoryFilter
+        ? streams.filter((s) => (s.category || '') === categoryFilter)
+        : streams
     return filtered.slice().sort((a, b) => (Number(!!b.favorite) - Number(!!a.favorite)) || a.name.localeCompare(b.name))
   }, [streams, categoryFilter])
 
   useEffect(() => {
+    if (categoryFilter === UNCATEGORIZED) return
     if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
   }, [streams, categoryFilter])
 
@@ -479,7 +485,7 @@ export default function App() {
           sleepMinutes, setSleepMinutes, sleepLeft,
           playerList, lastId,
           categories: availableCategories,
-          categoryFilter, setCategoryFilter,
+          categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED,
           onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
           onAddQuick: addQuickFromClipboard,
         }}
