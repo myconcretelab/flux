@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 
@@ -181,6 +181,7 @@ export default function App() {
     haptics: true,
     useSSE: true,
     playerBg: null,
+    playerCategory: '',
   })
   useEffect(() => { document.body.classList.toggle('compact', !!settings.compactList) }, [settings.compactList])
 
@@ -203,7 +204,23 @@ export default function App() {
   const { streams, upsert, remove, move, toggleFav, setStreams, loaded: streamsLoaded } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
   const UNCATEGORIZED = '__UNCATEGORIZED__'
-  const [categoryFilter, setCategoryFilter] = useLocalStorage('categoryFilter_v1', '')
+  const categoryFilter = settings.playerCategory || ''
+  const setCategoryFilter = useCallback((value) => {
+    setSettings((prev) => ({ ...prev, playerCategory: value }))
+  }, [setSettings])
+  const categoryMigratedRef = useRef(false)
+  useEffect(() => {
+    if (categoryMigratedRef.current || categoryFilter) return
+    categoryMigratedRef.current = true
+    try {
+      const stored = localStorage.getItem('categoryFilter_v1')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (typeof parsed === 'string') setCategoryFilter(parsed)
+        localStorage.removeItem('categoryFilter_v1')
+      }
+    } catch {}
+  }, [categoryFilter, setCategoryFilter])
 
   // Player state
   const audioRef = useRef(null)
@@ -473,7 +490,7 @@ export default function App() {
   useEffect(() => {
     if (!streamsLoaded || categoryFilter === UNCATEGORIZED) return
     if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
-  }, [streamsLoaded, streams, categoryFilter])
+  }, [streamsLoaded, streams, categoryFilter, setCategoryFilter])
 
   return (
     <>
@@ -511,7 +528,7 @@ export default function App() {
           onSeed: () => { setStreams((prev) => prev.length ? prev : prev); alert('Exemples ajoutés.') },
           onNuke: () => {
             if (confirm('Tout réinitialiser (flux + réglages) ?')) {
-              localStorage.clear(); setStreams([]); setSettings({ autoResume: true, showLockInfo: true, tryHttp: false, compactList: false, haptics: true, useSSE: true, playerBg: null }); setLastId(null); location.reload()
+              localStorage.clear(); setStreams([]); setSettings({ autoResume: true, showLockInfo: true, tryHttp: false, compactList: false, haptics: true, useSSE: true, playerBg: null, playerCategory: '' }); setLastId(null); location.reload()
             }
           }
         }}
