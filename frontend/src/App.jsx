@@ -77,6 +77,7 @@ function useLogs() {
 
 function useStreams(log) {
   const [streams, setStreams] = useState([])
+  const [loaded, setLoaded] = useState(false)
 
   const normalizeStream = (stream) => ({
     ...stream,
@@ -93,6 +94,7 @@ function useStreams(log) {
         if (Array.isArray(arr) && arr.length) setStreams(arr.map(normalizeStream))
         else { const seeded = seedDemo(); setStreams(seeded); await save(seeded) }
       } catch (err) { console.error('Chargement des flux impossible', err) }
+      finally { if (mounted) setLoaded(true) }
     })()
     return () => { mounted = false }
   }, [])
@@ -137,7 +139,7 @@ function useStreams(log) {
     setStreams((prev) => { const arr = prev.map((s) => s.id === id ? { ...s, favorite: !s.favorite } : s); save(arr); return arr })
   }
 
-  return { streams, setStreams, upsert, remove, move, toggleFav }
+  return { streams, setStreams, upsert, remove, move, toggleFav, loaded }
 }
 
 function useSleepTimer(audioRef) {
@@ -198,7 +200,7 @@ export default function App() {
     }
   }, [settings.playerBg])
 
-  const { streams, upsert, remove, move, toggleFav, setStreams } = useStreams(addLog)
+  const { streams, upsert, remove, move, toggleFav, setStreams, loaded: streamsLoaded } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
   const UNCATEGORIZED = '__UNCATEGORIZED__'
   const [categoryFilter, setCategoryFilter] = useLocalStorage('categoryFilter_v1', '')
@@ -469,9 +471,9 @@ export default function App() {
   }, [streams, categoryFilter])
 
   useEffect(() => {
-    if (categoryFilter === UNCATEGORIZED) return
+    if (!streamsLoaded || categoryFilter === UNCATEGORIZED) return
     if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
-  }, [streams, categoryFilter])
+  }, [streamsLoaded, streams, categoryFilter])
 
   return (
     <>
