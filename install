@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve repository root relative to this script
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "Installation des dependances serveur..."
+cd "$ROOT_DIR"
+npm install
+
+echo "Installation des dependances frontend..."
+cd "$ROOT_DIR/frontend"
+npm install --include=optional
+
+echo "Build du frontend..."
+npm run build
+
+echo "Installation terminee."

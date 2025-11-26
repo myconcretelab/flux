@@ -221,6 +221,11 @@ export default function App() {
       }
     } catch {}
   }, [categoryFilter, setCategoryFilter])
+  const [libraryCategoryFilter, setLibraryCategoryFilter] = useState('')
+  useEffect(() => {
+    if (!streamsLoaded || libraryCategoryFilter === UNCATEGORIZED) return
+    if (libraryCategoryFilter && !streams.some((s) => (s.category || '') === libraryCategoryFilter)) setLibraryCategoryFilter('')
+  }, [streamsLoaded, streams, libraryCategoryFilter, setLibraryCategoryFilter])
 
   // Player state
   const audioRef = useRef(null)
@@ -513,6 +518,9 @@ export default function App() {
           onSubmit: submitForm, onClear: clearForm, onPaste: pasteFromClipboard,
           manageList: streams,
           categories: availableCategories,
+          categoryFilter: libraryCategoryFilter,
+          onChangeCategoryFilter: setLibraryCategoryFilter,
+          uncategorizedValue: UNCATEGORIZED,
           onMove: move,
           onToggleFav: (id) => { toggleFav(id); buzz() },
           onEdit: loadToForm,

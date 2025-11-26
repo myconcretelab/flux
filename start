@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Resolve repository root relative to this script
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Build frontend if missing to ensure assets are served
+if [ ! -f "$ROOT_DIR/frontend/dist/index.html" ]; then
+  echo "Build frontend manquant, lancement du build..."
+  cd "$ROOT_DIR/frontend"
+  npm run build
+fi
+
+echo "Demarrage du serveur..."
+cd "$ROOT_DIR"
+npm start

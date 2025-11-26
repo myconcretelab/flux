@@ -186,6 +186,20 @@ label input[type="text"], label input[type="url"], label select, input[type="num
 
 .manage-list .item .left{display:flex; align-items:center; gap:10px}
 
+.stream-card-grid{grid-auto-rows:1fr;}
+.stream-card{
+  appearance:none;
+  -webkit-appearance:none;
+  color:inherit;
+}
+.stream-card.dragging{cursor:grabbing;}
+.stream-card .category{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
 .drag-btn, .fav-btn, .edit-btn, .del-btn, .up-btn, .down-btn, .play-btn{
   background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px; cursor:pointer;
 }
