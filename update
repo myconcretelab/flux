@@ -7,6 +7,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 echo "Mise à jour du dépôt..."
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Modifications locales détectées, création d'un stash..."
+  git stash push -u -m "update-$(date +%s)"
+fi
 git pull
 
 echo "Installation des dépendances et build du frontend..."
