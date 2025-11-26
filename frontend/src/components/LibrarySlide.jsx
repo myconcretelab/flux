@@ -1,5 +1,125 @@
 import { useMemo, useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Box, Button, Card, CardContent, Typography, TextField, Select, MenuItem } from '../mui'
+
+const TRASH_ID = 'trash-dropzone'
+
+function TrashDrop({ hot }) {
+  const { setNodeRef, isOver } = useDroppable({ id: TRASH_ID })
+  const active = hot || isOver
+  return (
+    <Box
+      ref={setNodeRef}
+      className="trash-drop"
+      sx={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '10px 12px',
+        borderRadius: '12px',
+        border: '1px dashed var(--border)',
+        background: active ? '#fef2f2' : '#fff',
+        color: active ? 'var(--danger)' : 'inherit',
+        transition: 'all .15s ease',
+        flex: { xs: '1 1 100%', sm: '0 0 auto' }
+      }}
+    >
+      <span role="img" aria-label="Corbeille">🗑</span>
+      <Typography component="span" sx={{ fontSize: 13 }}>
+        Déposez ici pour supprimer
+      </Typography>
+    </Box>
+  )
+}
+
+function SortableStreamCard({
+  stream,
+  activeId,
+  overId,
+  draggingId,
+  onToggleFav,
+  onEdit,
+}) {
+  const { id } = stream
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const isActive = activeId === id
+  const isOver = overId === id && draggingId && overId !== draggingId
+  const finalTransform = CSS.Transform.toString(transform)
+  const style = {
+    transform: finalTransform ? `${finalTransform}${isOver ? ' scale(1.02)' : ''}` : (isOver ? 'scale(1.02)' : undefined),
+    transition,
+  }
+
+  return (
+    <Box
+      ref={setNodeRef}
+      component="button"
+      type="button"
+      aria-pressed={isActive}
+      className={`stream-card${isActive ? ' active' : ''}${isDragging ? ' dragging' : ''}${isOver ? ' over' : ''}`}
+      onClick={() => onEdit(stream)}
+      {...attributes}
+      {...listeners}
+      style={style}
+      sx={{
+        position: 'relative',
+        border: '1px solid var(--border)',
+        borderRadius: '14px',
+        background: '#fff',
+        padding: '12px',
+        textAlign: 'left',
+        aspectRatio: '1',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        gap: '6px',
+        cursor: 'grab',
+        transition: 'border-color .15s ease, box-shadow .15s ease, transform .1s ease',
+        ...(isActive ? { borderColor: 'var(--primary)', boxShadow: '0 8px 24px rgba(10,14,39,.15)', background: '#f8fafc' } : {}),
+        ...(isOver ? { borderColor: 'var(--primary)' } : {}),
+        ...(isDragging ? { opacity: 0.7, cursor: 'grabbing' } : {}),
+        '&:focus-visible': { outline: '2px solid var(--primary)' }
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+        <Box sx={{ fontSize: 12, color: 'var(--muted)' }}>⋮⋮</Box>
+        <Button
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onToggleFav(stream.id) }}
+          aria-label={stream.favorite ? 'Retirer des favoris' : 'Marquer en favori'}
+          sx={{ minWidth: 36, height: 32, borderRadius: '10px', border: '1px solid var(--border)', background: '#fff', fontSize: 16, lineHeight: 1 }}
+        >
+          {stream.favorite ? '★' : '☆'}
+        </Button>
+      </Box>
+
+      <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, wordBreak: 'break-word', flex: 1 }}>
+        {stream.name}
+      </Typography>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+        <Box sx={{ fontSize: 12, color: stream.category ? '#0f172a' : 'var(--muted)', background: '#f2f4f7', borderRadius: '999px', px: '8px', py: '4px', minWidth: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          {stream.category || 'Sans catégorie'}
+        </Box>
+        {isActive ? <span role="img" aria-label="En édition">✏️</span> : null}
+      </Box>
+    </Box>
+  )
+}
 
 export default function LibrarySlide({
   form, setForm, onSubmit, onClear, onPaste,
@@ -11,45 +131,42 @@ export default function LibrarySlide({
   const [overId, setOverId] = useState('')
   const [trashHot, setTrashHot] = useState(false)
   const activeId = form.id
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const resetDnD = () => { setDraggingId(''); setOverId(''); setTrashHot(false) }
-  const handleDragStart = (stream) => (e) => {
-    setDraggingId(stream.id)
-    setOverId(stream.id)
+  const handleDragStart = ({ active }) => {
+    if (!active?.id) return
+    setDraggingId(String(active.id))
+    setOverId(String(active.id))
     setTrashHot(false)
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/plain', stream.id)
+  }
+  const handleDragOver = ({ over }) => {
+    const overKey = over?.id ? String(over.id) : ''
+    setTrashHot(overKey === TRASH_ID)
+    setOverId(overKey && overKey !== TRASH_ID ? overKey : '')
+  }
+  const handleDragEnd = ({ active, over }) => {
+    const activeKey = active?.id ? String(active.id) : ''
+    const overKey = over?.id ? String(over.id) : ''
+    if (activeKey && overKey === TRASH_ID) {
+      const stream = manageList.find((s) => s.id === activeKey)
+      if (stream) onDelete(stream)
+      resetDnD()
+      return
     }
-  }
-  const handleDragEnter = (stream) => (e) => {
-    if (!draggingId) return
-    e.preventDefault()
-    if (stream.id !== draggingId) setOverId(stream.id)
-  }
-  const handleDropOnCard = (stream) => (e) => {
-    e.preventDefault()
-    if (!draggingId) return resetDnD()
-    const from = manageList.findIndex((s) => s.id === draggingId)
-    const to = manageList.findIndex((s) => s.id === stream.id)
-    if (from !== -1 && to !== -1 && from !== to) onMove(from, to)
+    if (activeKey && overKey) {
+      const from = manageList.findIndex((s) => s.id === activeKey)
+      const to = manageList.findIndex((s) => s.id === overKey)
+      if (from !== -1 && to !== -1 && from !== to) onMove(from, to)
+    }
     resetDnD()
   }
-  const handleDragOver = (e) => { if (draggingId) e.preventDefault() }
-  const handleDragEnd = () => resetDnD()
-  const handleDragEnterTrash = (e) => {
-    if (!draggingId) return
-    e.preventDefault()
-    setTrashHot(true)
-    setOverId('')
-  }
-  const handleDropTrash = (e) => {
-    e.preventDefault()
-    if (!draggingId) return resetDnD()
-    const stream = manageList.find((s) => s.id === draggingId)
-    if (stream) onDelete(stream)
-    resetDnD()
-  }
+  const handleDragCancel = () => resetDnD()
+
   const filteredList = useMemo(() => {
     if (categoryFilter === uncategorizedValue) return manageList.filter((s) => !s.category)
     if (categoryFilter) return manageList.filter((s) => (s.category || '') === categoryFilter)
@@ -102,97 +219,34 @@ export default function LibrarySlide({
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: '10px', alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
-            <Box
-              className="trash-drop"
-              onDragOver={handleDragEnterTrash}
-              onDragEnter={handleDragEnterTrash}
-              onDragLeave={() => setTrashHot(false)}
-              onDrop={handleDropTrash}
-              sx={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '12px',
-                border: '1px dashed var(--border)',
-                background: trashHot ? '#fef2f2' : '#fff',
-                color: trashHot ? 'var(--danger)' : 'inherit',
-                transition: 'all .15s ease',
-                flex: { xs: '1 1 100%', sm: '0 0 auto' }
-              }}
-            >
-              <span role="img" aria-label="Corbeille">🗑</span>
-              <Typography component="span" sx={{ fontSize: 13 }}>
-                Déposez ici pour supprimer
-              </Typography>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <Box sx={{ display: 'flex', gap: '10px', alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
+              <TrashDrop hot={trashHot} />
+              <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 140, borderRadius: '12px' }}>Nouveau flux</Button>
             </Box>
-            <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 140, borderRadius: '12px' }}>Nouveau flux</Button>
-          </Box>
-
-          <Box className="stream-card-grid" sx={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-            {filteredList.map((s) => {
-              const isActive = activeId === s.id
-              const isDragging = draggingId === s.id
-              const isOver = overId === s.id && draggingId && overId !== draggingId
-              return (
-                <Box
-                  key={s.id}
-                  component="button"
-                  type="button"
-                  draggable
-                  onDragStart={handleDragStart(s)}
-                  onDragEnter={handleDragEnter(s)}
-                  onDragOver={handleDragOver}
-                  onDragEnd={handleDragEnd}
-                  onDrop={handleDropOnCard(s)}
-                  onClick={() => onEdit(s)}
-                  aria-pressed={isActive}
-                  className={`stream-card${isActive ? ' active' : ''}${isDragging ? ' dragging' : ''}${isOver ? ' over' : ''}`}
-                  sx={{
-                    position: 'relative',
-                    border: '1px solid var(--border)',
-                    borderRadius: '14px',
-                    background: '#fff',
-                    padding: '12px',
-                    textAlign: 'left',
-                    aspectRatio: '1',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '6px',
-                    cursor: 'grab',
-                    transition: 'border-color .15s ease, box-shadow .15s ease, transform .1s ease',
-                    ...(isActive ? { borderColor: 'var(--primary)', boxShadow: '0 8px 24px rgba(10,14,39,.15)', background: '#f8fafc' } : {}),
-                    ...(isOver ? { borderColor: 'var(--primary)', transform: 'scale(1.02)' } : {}),
-                    ...(isDragging ? { opacity: 0.7 } : {}),
-                    '&:focus-visible': { outline: '2px solid var(--primary)' }
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <Box sx={{ fontSize: 12, color: 'var(--muted)' }}>⋮⋮</Box>
-                    <Button
-                      size="small"
-                      onClick={(e) => { e.stopPropagation(); onToggleFav(s.id) }}
-                      aria-label={s.favorite ? 'Retirer des favoris' : 'Marquer en favori'}
-                      sx={{ minWidth: 36, height: 32, borderRadius: '10px', border: '1px solid var(--border)', background: '#fff', fontSize: 16, lineHeight: 1 }}
-                    >
-                      {s.favorite ? '★' : '☆'}
-                    </Button>
-                  </Box>
-
-                  <Typography sx={{ fontWeight: 700, fontSize: 14, lineHeight: 1.2, wordBreak: 'break-word', flex: 1 }}>
-                    {s.name}
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <Box sx={{ fontSize: 12, color: s.category ? '#0f172a' : 'var(--muted)', background: '#f2f4f7', borderRadius: '999px', px: '8px', py: '4px', minWidth: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                      {s.category || 'Sans catégorie'}
-                    </Box>
-                    {isActive ? <span role="img" aria-label="En édition">✏️</span> : null}
-                  </Box>
-                </Box>
-              )
-            })}
-          </Box>
+            <SortableContext items={filteredList.map((s) => s.id)} strategy={rectSortingStrategy}>
+              <Box className="stream-card-grid" sx={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+                {filteredList.map((s) => (
+                  <SortableStreamCard
+                    key={s.id}
+                    stream={s}
+                    activeId={activeId}
+                    overId={overId}
+                    draggingId={draggingId}
+                    onToggleFav={onToggleFav}
+                    onEdit={onEdit}
+                  />
+                ))}
+              </Box>
+            </SortableContext>
+          </DndContext>
         </CardContent>
       </Card>
 

@@ -115,27 +115,57 @@ export default function PlayerSlide({
             ))}
           </Select>
         </Box>
-        <Box component="ul" aria-live="polite" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Box
+          component="ul"
+          aria-live="polite"
+          sx={{
+            listStyle: 'none',
+            m: 0,
+            p: 0,
+            display: 'grid',
+            gap: '12px',
+            gridTemplateColumns: { xs: 'repeat(auto-fit, minmax(140px, 1fr))', sm: 'repeat(auto-fit, minmax(160px, 1fr))' }
+          }}
+        >
           {playerList.map((s) => {
             const isCurrent = s.id === lastId
             const isPlaying = isCurrent && playing
             return (
-              <Box key={s.id} component="li" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', p: '14px', background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', ...(isCurrent ? { backgroundColor: '#e6ecf5' } : {}) }}>
-                <Box className="meta" sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Box className="name" sx={{ fontWeight: 600 }}>
-                    {s.name} {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block', ml: 1 }}>★</Box> : null}
-                  </Box>
-                  <Box className="sub" sx={{ fontSize: 12, color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <span>{s.url}</span>
-                    <span>{s.category ? <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: 12 }}>
-                      <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '4px', px: '8px', py: '2px', borderRadius: 999, background: '#f2f4f7', color: '#111827' }}>
-                        📁 {s.category}
-                      </Box>
-                      {s.format ? <Box component="span" sx={{ px: '8px', py: '2px', borderRadius: 999, background: '#eef2ff', color: '#312e81' }}>{String(s.format).toUpperCase()}</Box> : null}
-                    </Box> : (s.format ? <Box component="span" sx={{ px: '8px', py: '2px', borderRadius: 999, background: '#eef2ff', color: '#312e81', width: 'fit-content' }}>{String(s.format).toUpperCase()}</Box> : null)}</span>
-                  </Box>
+              <Box
+                key={s.id}
+                component="li"
+                sx={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  p: '14px',
+                  background: '#fff',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  aspectRatio: '1',
+                  ...(isCurrent ? { backgroundColor: '#e6ecf5', borderColor: '#cbd5e1' } : {})
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <Typography sx={{ fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word', flex: 1 }}>{s.name}</Typography>
+                  {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block' }}>★</Box> : null}
                 </Box>
-                <Box className="actions" sx={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: 'var(--muted)', fontSize: 12 }}>
+                  {s.category ? (
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', px: '10px', py: '4px', borderRadius: 999, background: '#f2f4f7', color: '#111827' }}>
+                      📁 {s.category}
+                    </Box>
+                  ) : null}
+                  {s.format ? (
+                    <Box component="span" sx={{ px: '10px', py: '4px', borderRadius: 999, background: '#eef2ff', color: '#312e81' }}>
+                      {String(s.format).toUpperCase()}
+                    </Box>
+                  ) : null}
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', mt: 'auto' }}>
                   {isPlaying ? (
                     <Box aria-hidden="true" sx={{ display: 'flex', alignItems: 'flex-end', gap: '2px', width: 16, height: 16, mr: '4px' }}>
                       <Box sx={{ flex: 1, background: 'var(--primary)', transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out' }} />
@@ -144,7 +174,7 @@ export default function PlayerSlide({
                     </Box>
                   ) : null}
                   <IconButton className="play-btn" title={isPlaying ? 'Stop' : 'Lire'} aria-label={isPlaying ? 'Stop' : 'Lire'} onClick={() => onPlayItem(s.id)}
-                    sx={{ width: 40, height: 40, borderRadius: '50%', p: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#fff', border: '1px solid var(--border)' }}>
+                    sx={{ width: 44, height: 44, borderRadius: '12px', p: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#fff', border: '1px solid var(--border)' }}>
                     {isPlaying ? '■' : '▶︎'}
                   </IconButton>
                 </Box>
