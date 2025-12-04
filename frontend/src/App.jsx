@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
+import AppHeader from './components/AppHeader'
 
 // Utils
 const VERSION = '1.3.0'
@@ -499,6 +500,7 @@ export default function App() {
 
   return (
     <>
+      <AppHeader />
       <Slides
         slidesRef={slidesRef}
         playerProps={{

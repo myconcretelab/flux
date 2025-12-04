@@ -5,7 +5,7 @@ import { Box, Container } from '../mui'
 
 export default function Slides({ slidesRef, playerProps, libraryProps, settingsProps }) {
   return (
-    <Container sx={{ width: '100%', maxWidth: 800, mx: 'auto', p: 0 }}>
+    <Container sx={{ width: '100%', maxWidth: 980, mx: 'auto', p: 0 }}>
       <Box
         ref={slidesRef}
         id="slides"

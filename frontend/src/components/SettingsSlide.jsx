@@ -5,7 +5,7 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
     <Box component="section" aria-labelledby="settings-title" sx={{ scrollSnapAlign: 'start', flex: '0 0 100%', px: { xs: '8px', sm: '16px' }, pb: '64px' }}>
       <Typography id="settings-title" component="h1" sx={{ fontSize: 20, my: '8px', mx: '4px' }}>Options avancées</Typography>
 
-      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', mb: 2 }}>
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', boxShadow: '0 24px 60px rgba(0,0,0,0.45)', mb: 2, background: 'var(--card)' }}>
         <CardContent>
           <Typography component="h2" sx={{ fontSize: 16, m: 0, mb: 1 }}>Réseau & compatibilité iOS</Typography>
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -18,7 +18,7 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
         </CardContent>
       </Card>
 
-      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', mb: 2 }}>
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', boxShadow: '0 24px 60px rgba(0,0,0,0.45)', mb: 2, background: 'var(--card)' }}>
         <CardContent>
           <Typography component="h2" sx={{ fontSize: 16, m: 0, mb: 1 }}>Interface</Typography>
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.compactList} onChange={(e) => setSettings({ ...settings, compactList: e.target.checked })} /> Liste compacte</label>
@@ -26,17 +26,17 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.autoResume} onChange={(e) => setSettings({ ...settings, autoResume: e.target.checked })} /> Reprendre automatiquement le dernier flux</label>
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.showLockInfo} onChange={(e) => setSettings({ ...settings, showLockInfo: e.target.checked })} /> Afficher titre sur l’écran verrouillé</label>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>Couleur du lecteur
-            <input type="color" value={settings.playerBg || '#f7f8fa'} onChange={(e) => setSettings({ ...settings, playerBg: e.target.value })} />
+            <input type="color" value={settings.playerBg || '#f7f8fa'} onChange={(e) => setSettings({ ...settings, playerBg: e.target.value })} style={{ width: 52, height: 32, background: 'transparent', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 10, padding: 2, boxShadow: '0 10px 24px rgba(0,0,0,0.35)' }} />
           </label>
         </CardContent>
       </Card>
 
-      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}>
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', boxShadow: '0 24px 60px rgba(0,0,0,0.45)', background: 'var(--card)' }}>
         <CardContent>
           <Typography component="h2" sx={{ fontSize: 16, m: 0, mb: 1 }}>Divers</Typography>
           <Box sx={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Button size="small" onClick={onSeed} sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff' }}>Insérer des exemples (FIP, etc.)</Button>
-            <Button size="small" onClick={onNuke} sx={{ background: 'var(--danger)', color: '#fff' }}>Tout réinitialiser</Button>
+            <Button size="small" onClick={onSeed} sx={{ border: '1px solid transparent', borderRadius: '12px', background: 'linear-gradient(120deg, var(--primary), var(--accent))', color: '#0b1021', boxShadow: '0 18px 36px rgba(0,0,0,0.35)' }}>Insérer des exemples (FIP, etc.)</Button>
+            <Button size="small" onClick={onNuke} sx={{ background: 'var(--danger)', color: '#fff', borderRadius: '12px', boxShadow: '0 16px 30px rgba(0,0,0,0.35)' }}>Tout réinitialiser</Button>
           </Box>
           <Typography className="muted" sx={{ color: 'var(--muted)', fontSize: 12, mt: 1 }}>Version <span>{version}</span></Typography>
         </CardContent>
@@ -44,4 +44,3 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
     </Box>
   )
 }
-

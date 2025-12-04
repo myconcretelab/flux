@@ -18,6 +18,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Box, Button, Card, CardContent, Typography, TextField, Select, MenuItem } from '../mui'
 
+const glass = 'linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))'
+const pill = 'rgba(255,255,255,0.06)'
+const accent = 'linear-gradient(120deg, var(--primary), var(--accent))'
 const TRASH_ID = 'trash-dropzone'
 
 function TrashDrop({ hot }) {
@@ -32,7 +35,7 @@ function TrashDrop({ hot }) {
         padding: '10px 12px',
         borderRadius: '12px',
         border: '1px dashed var(--border)',
-        background: active ? '#fef2f2' : '#fff',
+        background: active ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)',
         color: active ? 'var(--danger)' : 'inherit',
         transition: 'all .15s ease',
         flex: { xs: '1 1 100%', sm: '0 0 auto' }
@@ -67,19 +70,26 @@ function SortableStreamCard({
   return (
     <Box
       ref={setNodeRef}
-      component="button"
-      type="button"
+      component="div"
+      role="button"
+      tabIndex={0}
       aria-pressed={isActive}
       className={`stream-card${isActive ? ' active' : ''}${isDragging ? ' dragging' : ''}${isOver ? ' over' : ''}`}
       onClick={() => onEdit(stream)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onEdit(stream)
+        }
+      }}
       {...attributes}
       {...listeners}
       style={style}
       sx={{
         position: 'relative',
-        border: '1px solid var(--border)',
+        border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: '14px',
-        background: '#fff',
+        background: glass,
         padding: '12px',
         textAlign: 'left',
         aspectRatio: '1',
@@ -89,8 +99,9 @@ function SortableStreamCard({
         gap: '6px',
         cursor: 'grab',
         transition: 'border-color .15s ease, box-shadow .15s ease, transform .1s ease',
-        ...(isActive ? { borderColor: 'var(--primary)', boxShadow: '0 8px 24px rgba(10,14,39,.15)', background: '#f8fafc' } : {}),
-        ...(isOver ? { borderColor: 'var(--primary)' } : {}),
+        boxShadow: '0 18px 36px rgba(0,0,0,0.32)',
+        ...(isActive ? { borderColor: 'rgba(30,242,207,0.5)', boxShadow: '0 22px 44px rgba(0,0,0,.4)', background: 'linear-gradient(145deg, rgba(30,242,207,0.15), rgba(255,115,198,0.1))' } : {}),
+        ...(isOver ? { borderColor: 'rgba(30,242,207,0.6)' } : {}),
         ...(isDragging ? { opacity: 0.7, cursor: 'grabbing' } : {}),
         '&:focus-visible': { outline: '2px solid var(--primary)' }
       }}
@@ -101,7 +112,7 @@ function SortableStreamCard({
           size="small"
           onClick={(e) => { e.stopPropagation(); onToggleFav(stream.id) }}
           aria-label={stream.favorite ? 'Retirer des favoris' : 'Marquer en favori'}
-          sx={{ minWidth: 36, height: 32, borderRadius: '10px', border: '1px solid var(--border)', background: '#fff', fontSize: 16, lineHeight: 1 }}
+          sx={{ minWidth: 36, height: 32, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.22)', background: pill, fontSize: 16, lineHeight: 1, color: '#fff', boxShadow: '0 12px 22px rgba(0,0,0,0.35)' }}
         >
           {stream.favorite ? '★' : '☆'}
         </Button>
@@ -112,7 +123,7 @@ function SortableStreamCard({
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-        <Box sx={{ fontSize: 12, color: stream.category ? '#0f172a' : 'var(--muted)', background: '#f2f4f7', borderRadius: '999px', px: '8px', py: '4px', minWidth: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+        <Box sx={{ fontSize: 12, color: stream.category ? '#e7ecf5' : 'var(--muted)', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', px: '8px', py: '4px', minWidth: 0, textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
           {stream.category || 'Sans catégorie'}
         </Box>
         {isActive ? <span role="img" aria-label="En édition">✏️</span> : null}
@@ -186,13 +197,13 @@ export default function LibrarySlide({
     <Box component="section" aria-labelledby="library-title" sx={{ scrollSnapAlign: 'start', flex: '0 0 100%', px: { xs: '8px', sm: '16px' }, pb: '64px' }}>
       <Typography id="library-title" component="h1" sx={{ fontSize: 20, my: '8px', mx: '4px' }}>Gestion des flux</Typography>
 
-      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', mb: 2 }}>
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', boxShadow: '0 28px 60px rgba(0,0,0,0.45)', mb: 2, background: 'var(--card)' }}>
         <CardContent>
           <Box className="card-head" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: '12px', gap: 1, flexWrap: 'wrap' }}>
             <Typography component="h2" sx={{ fontSize: 16, m: 0 }}>Flux enregistrés</Typography>
             <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button size="small" onClick={onExport} sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff', px: 1.5, py: 0.5 }}>Exporter JSON</Button>
-              <label className="file-btn" style={{ position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', padding: '4px 8px', borderRadius: '12px', border: '1px solid var(--border)', background: '#fff', cursor: 'pointer' }}>
+              <Button size="small" onClick={onExport} sx={{ border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', background: pill, color: '#fff', px: 1.5, py: 0.5, boxShadow: '0 14px 30px rgba(0,0,0,0.3)' }}>Exporter JSON</Button>
+              <label className="file-btn" style={{ position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', padding: '6px 10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.22)', background: 'rgba(255,255,255,0.06)', cursor: 'pointer', color: '#fff', boxShadow: '0 14px 30px rgba(0,0,0,0.3)' }}>
                 Importer JSON
                 <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
               </label>
@@ -206,7 +217,7 @@ export default function LibrarySlide({
               value={categoryFilter}
               onChange={(e) => onChangeCategoryFilter(e.target.value)}
               size="small"
-              sx={{ minWidth: 200, background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}
+              sx={{ minWidth: 200, background: pill, color: 'var(--fg)', borderRadius: '14px', '& fieldset': { borderRadius: '14px', borderColor: 'rgba(255,255,255,0.18)' }, '.MuiSvgIcon-root': { color: 'var(--muted)' } }}
             >
               <MenuItem value=""><em>Toutes les catégories</em></MenuItem>
               <MenuItem value={uncategorizedValue}>Sans catégorie</MenuItem>
@@ -229,7 +240,7 @@ export default function LibrarySlide({
           >
             <Box sx={{ display: 'flex', gap: '10px', alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
               <TrashDrop hot={trashHot} />
-              <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 140, borderRadius: '12px' }}>Nouveau flux</Button>
+              <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid transparent', background: accent, color: '#0b1021', minWidth: 140, borderRadius: '12px', boxShadow: '0 18px 32px rgba(0,0,0,0.35)' }}>Nouveau flux</Button>
             </Box>
             <SortableContext items={filteredList.map((s) => s.id)} strategy={rectSortingStrategy}>
               <Box className="stream-card-grid" sx={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
@@ -250,7 +261,7 @@ export default function LibrarySlide({
         </CardContent>
       </Card>
 
-      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)' }}>
+      <Card sx={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', boxShadow: '0 28px 60px rgba(0,0,0,0.45)', background: 'var(--card)' }}>
         <CardContent>
           <Typography component="h2" sx={{ fontSize: 16, m: 0, mb: 1 }}>Ajouter ou éditer</Typography>
           <Typography sx={{ color: 'var(--muted)', fontSize: 13, mb: 1 }}>Les champs se déploient en plein écran tactile. Choisissez une catégorie existante ou saisissez la vôtre. Le format est auto-détecté si l’URL le laisse deviner.</Typography>
@@ -264,29 +275,29 @@ export default function LibrarySlide({
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               size="small"
               fullWidth
-              sx={{ background: '#fff', borderRadius: '12px', gridColumn: { xs: '1/-1', sm: 'span 2' } }}
+              sx={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px', gridColumn: { xs: '1/-1', sm: 'span 2' } }}
             />
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: '8px', gridColumn: { xs: '1/-1', sm: 'span 2' } }}>
               <TextField
                 label="Catégorie"
                 placeholder="ex. Rock, Infos..."
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                size="small"
-                fullWidth
-                inputProps={{ list: 'categoryOptions' }}
-                sx={{ background: '#fff', borderRadius: '12px' }}
-              />
-              <Select
-                displayEmpty
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                renderValue={(value) => value || 'Choisir une catégorie'}
-                size="small"
-                fullWidth
-                sx={{ background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}
-              >
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              size="small"
+              fullWidth
+              inputProps={{ list: 'categoryOptions' }}
+              sx={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px' }}
+            />
+            <Select
+              displayEmpty
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              renderValue={(value) => value || 'Choisir une catégorie'}
+              size="small"
+              fullWidth
+              sx={{ background: pill, borderRadius: '14px', '& fieldset': { borderRadius: '14px', borderColor: 'rgba(255,255,255,0.18)' }, color: 'var(--fg)', '.MuiSvgIcon-root': { color: 'var(--muted)' } }}
+            >
                 <MenuItem value="">Sans catégorie</MenuItem>
                 {categories.map((cat) => (
                   <MenuItem value={cat} key={cat}>{cat}</MenuItem>
@@ -305,9 +316,9 @@ export default function LibrarySlide({
                 onBlur={guessFormat}
                 size="small"
                 fullWidth
-                sx={{ background: '#fff', borderRadius: '12px' }}
+                sx={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px' }}
               />
-              <Button type="button" onClick={onPaste} size="small" sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff', flexShrink: 0 }}>Coller</Button>
+              <Button type="button" onClick={onPaste} size="small" sx={{ border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', background: pill, flexShrink: 0, color: '#fff' }}>Coller</Button>
             </Box>
 
             <Select
@@ -315,7 +326,7 @@ export default function LibrarySlide({
               value={form.format}
               onChange={(e) => setForm({ ...form, format: e.target.value })}
               size="small"
-              sx={{ background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}
+              sx={{ background: pill, borderRadius: '14px', '& fieldset': { borderRadius: '14px', borderColor: 'rgba(255,255,255,0.18)' }, color: 'var(--fg)', '.MuiSvgIcon-root': { color: 'var(--muted)' } }}
             >
               <MenuItem value="">Auto</MenuItem>
               <MenuItem value="mp3">MP3</MenuItem>
@@ -333,14 +344,14 @@ export default function LibrarySlide({
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               size="small"
               fullWidth
-              sx={{ background: '#fff', borderRadius: '12px', gridColumn: { xs: '1/-1', sm: 'span 2' } }}
+              sx={{ background: 'rgba(255,255,255,0.06)', borderRadius: '14px', gridColumn: { xs: '1/-1', sm: 'span 2' } }}
             />
 
             <Box sx={{ display: 'flex', gap: '8px', flexWrap: 'wrap', gridColumn: '1/-1', justifyContent: { xs: 'stretch', sm: 'flex-start' } }}>
-              <Button size="small" type="submit" variant="contained" sx={{ background: 'var(--primary)', minWidth: 140 }}>Enregistrer</Button>
-              <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 120 }}>Réinitialiser</Button>
-              <Button size="small" type="button" onClick={() => form.id && onDelete(form)} disabled={!form.id} sx={{ background: 'var(--danger)', color: '#fff', minWidth: 120 }}>Supprimer</Button>
-              <Button size="small" type="button" onClick={() => form.id && onPlay(form.id)} disabled={!form.id} sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 120 }}>Tester</Button>
+              <Button size="small" type="submit" variant="contained" sx={{ background: accent, color: '#0b1021', minWidth: 140, borderRadius: '12px', boxShadow: '0 20px 36px rgba(0,0,0,0.4)' }}>Enregistrer</Button>
+              <Button size="small" type="button" onClick={onClear} sx={{ border: '1px solid rgba(255,255,255,0.2)', background: pill, color: '#fff', minWidth: 120, borderRadius: '12px' }}>Réinitialiser</Button>
+              <Button size="small" type="button" onClick={() => form.id && onDelete(form)} disabled={!form.id} sx={{ background: 'var(--danger)', color: '#fff', minWidth: 120, borderRadius: '12px' }}>Supprimer</Button>
+              <Button size="small" type="button" onClick={() => form.id && onPlay(form.id)} disabled={!form.id} sx={{ border: '1px solid rgba(255,255,255,0.2)', background: pill, color: '#fff', minWidth: 120, borderRadius: '12px' }}>Tester</Button>
             </Box>
             <datalist id="categoryOptions">
               {categories.map((cat) => <option value={cat} key={cat} />)}
