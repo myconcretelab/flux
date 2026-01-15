@@ -1,5 +1,6 @@
 import deezerLogo from '../assets/Logo_Deezer_2023.svg'
-import { Box, Button, Card, CardContent, Typography, IconButton, Select, MenuItem } from '../mui'
+import { Box, Button, Card, CardContent, Typography, Select, MenuItem } from '../mui'
+import { pickReadableText, tintColor } from '../color-utils'
 
 export default function PlayerSlide({
   nowName, nowMeta, playing, onPlayPause, audioRef, deezerHref,
@@ -7,6 +8,7 @@ export default function PlayerSlide({
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
   categories, categoryFilter, setCategoryFilter, uncategorizedValue,
+  categoryColors = {},
 }) {
   return (
     <Box
@@ -130,53 +132,129 @@ export default function PlayerSlide({
           {playerList.map((s) => {
             const isCurrent = s.id === lastId
             const isPlaying = isCurrent && playing
+            const isActive = isCurrent
+            const categoryColor = s.category ? categoryColors[s.category] : null
+            const hasCategoryColor = !!categoryColor
+            const idleBg = hasCategoryColor ? (tintColor(categoryColor, 0.86) || '#fff') : '#fff'
+            const activeBg = hasCategoryColor ? categoryColor : '#fff'
+            const cardBg = isActive ? activeBg : idleBg
+            const cardFg = hasCategoryColor
+              ? (isActive ? pickReadableText(categoryColor) : categoryColor)
+              : '#111827'
+            const cardMuted = hasCategoryColor
+              ? (isActive
+                ? (cardFg === '#ffffff' ? 'rgba(255,255,255,0.78)' : 'rgba(17,24,39,0.7)')
+                : cardFg)
+              : 'var(--muted)'
+            const categoryBadgeStyle = hasCategoryColor
+              ? (isActive
+                ? {
+                  background: cardFg,
+                  color: categoryColor,
+                  border: `1px solid ${categoryColor}`,
+                }
+                : {
+                  background: tintColor(categoryColor, 0.7) || '#fff',
+                  color: categoryColor,
+                  border: `1px solid ${categoryColor}`,
+                })
+              : {
+                background: '#f2f4f7',
+                color: '#111827',
+                border: '1px solid transparent',
+              }
+            const formatBadgeStyle = hasCategoryColor
+              ? (isActive
+                ? {
+                  background: cardFg === '#ffffff' ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.7)',
+                  color: cardFg,
+                  border: cardFg === '#ffffff' ? '1px solid rgba(255,255,255,0.5)' : '1px solid rgba(15,23,42,0.2)',
+                }
+                : {
+                  background: 'rgba(255,255,255,0.75)',
+                  color: categoryColor,
+                  border: `1px solid ${categoryColor}`,
+                })
+              : {
+                background: '#eef2ff',
+                color: '#312e81',
+                border: '1px solid transparent',
+              }
             return (
               <Box
                 key={s.id}
                 component="li"
                 sx={{
                   position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                  p: '14px',
-                  background: '#fff',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
                   aspectRatio: '1',
-                  ...(isCurrent ? { backgroundColor: '#e6ecf5', borderColor: '#cbd5e1' } : {})
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <Typography sx={{ fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word', flex: 1 }}>{s.name}</Typography>
-                  {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block' }}>★</Box> : null}
-                </Box>
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => onPlayItem(s.id)}
+                  aria-pressed={isPlaying}
+                  aria-label={isPlaying ? `Stop ${s.name}` : `Lire ${s.name}`}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    p: '14px',
+                    background: cardBg,
+                    color: cardFg,
+                    border: 'none',
+                    borderRadius: '10px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    outline: 'none',
+                    transition: 'transform 0.15s ease',
+                    '&:hover': { transform: 'translateY(-1px)' },
+                    '&:active': { transform: 'translateY(0)' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <Typography sx={{ fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word', flex: 1, color: 'inherit' }}>{s.name}</Typography>
+                    {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block' }}>★</Box> : null}
+                  </Box>
 
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: 'var(--muted)', fontSize: 12 }}>
-                  {s.category ? (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', px: '10px', py: '4px', borderRadius: 999, background: '#f2f4f7', color: '#111827' }}>
-                      📁 {s.category}
-                    </Box>
-                  ) : null}
-                  {s.format ? (
-                    <Box component="span" sx={{ px: '10px', py: '4px', borderRadius: 999, background: '#eef2ff', color: '#312e81' }}>
-                      {String(s.format).toUpperCase()}
-                    </Box>
-                  ) : null}
-                </Box>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: cardMuted, fontSize: 12 }}>
+                    {s.category ? (
+                      <Box component="span" sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        px: '10px',
+                        py: '4px',
+                        borderRadius: 999,
+                        ...categoryBadgeStyle
+                      }}>
+                        📁 {s.category}
+                      </Box>
+                    ) : null}
+                    {s.format ? (
+                      <Box component="span" sx={{
+                        px: '10px',
+                        py: '4px',
+                        borderRadius: 999,
+                        ...formatBadgeStyle,
+                      }}>
+                        {String(s.format).toUpperCase()}
+                      </Box>
+                    ) : null}
+                  </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px', mt: 'auto' }}>
-                  {isPlaying ? (
-                    <Box aria-hidden="true" sx={{ display: 'flex', alignItems: 'flex-end', gap: '2px', width: 16, height: 16, mr: '4px' }}>
-                      <Box sx={{ flex: 1, background: 'var(--primary)', transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out' }} />
-                      <Box sx={{ flex: 1, background: 'var(--primary)', transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out .2s' }} />
-                      <Box sx={{ flex: 1, background: 'var(--primary)', transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out .4s' }} />
-                    </Box>
-                  ) : null}
-                  <IconButton className="play-btn" title={isPlaying ? 'Stop' : 'Lire'} aria-label={isPlaying ? 'Stop' : 'Lire'} onClick={() => onPlayItem(s.id)}
-                    sx={{ width: 44, height: 44, borderRadius: '12px', p: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#fff', border: '1px solid var(--border)' }}>
-                    {isPlaying ? '■' : '▶︎'}
-                  </IconButton>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mt: 'auto' }}>
+                    {isPlaying ? (
+                      <Box aria-hidden="true" sx={{ display: 'flex', alignItems: 'flex-end', gap: '2px', width: 16, height: 16 }}>
+                        <Box sx={{ flex: 1, background: cardFg, transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out' }} />
+                        <Box sx={{ flex: 1, background: cardFg, transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out .2s' }} />
+                        <Box sx={{ flex: 1, background: cardFg, transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out .4s' }} />
+                      </Box>
+                    ) : null}
+                  </Box>
                 </Box>
               </Box>
             )

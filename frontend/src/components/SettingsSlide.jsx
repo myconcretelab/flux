@@ -25,7 +25,7 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.haptics} onChange={(e) => setSettings({ ...settings, haptics: e.target.checked })} /> Retour haptique (si dispo)</label>
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.autoResume} onChange={(e) => setSettings({ ...settings, autoResume: e.target.checked })} /> Reprendre automatiquement le dernier flux</label>
           <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={!!settings.showLockInfo} onChange={(e) => setSettings({ ...settings, showLockInfo: e.target.checked })} /> Afficher titre sur l’écran verrouillé</label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>Couleur du lecteur
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>Couleur du lecteur (par défaut)
             <input type="color" value={settings.playerBg || '#f7f8fa'} onChange={(e) => setSettings({ ...settings, playerBg: e.target.value })} />
           </label>
         </CardContent>
@@ -44,4 +44,3 @@ export default function SettingsSlide({ settings, setSettings, onSeed, onNuke, v
     </Box>
   )
 }
-

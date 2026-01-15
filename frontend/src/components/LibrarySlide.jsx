@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -125,17 +125,33 @@ export default function LibrarySlide({
   form, setForm, onSubmit, onClear, onPaste,
   manageList, onMove, onToggleFav, onEdit, onDelete, onPlay,
   onExport, onImport,
-  categories, categoryFilter, onChangeCategoryFilter, uncategorizedValue,
+  categories, categoryColors, onRenameCategory, onDeleteCategory, onSetCategoryColor, onClearCategoryColor,
+  categoryFilter, onChangeCategoryFilter, uncategorizedValue,
 }) {
   const [draggingId, setDraggingId] = useState('')
   const [overId, setOverId] = useState('')
   const [trashHot, setTrashHot] = useState(false)
+  const [categoryDrafts, setCategoryDrafts] = useState({})
   const activeId = form.id
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  useEffect(() => {
+    setCategoryDrafts((prev) => {
+      const next = { ...prev }
+      const known = new Set(categories)
+      categories.forEach((cat) => {
+        if (!Object.prototype.hasOwnProperty.call(next, cat)) next[cat] = cat
+      })
+      Object.keys(next).forEach((key) => {
+        if (!known.has(key)) delete next[key]
+      })
+      return next
+    })
+  }, [categories])
 
   const resetDnD = () => { setDraggingId(''); setOverId(''); setTrashHot(false) }
   const handleDragStart = ({ active }) => {
@@ -172,6 +188,7 @@ export default function LibrarySlide({
     if (categoryFilter) return manageList.filter((s) => (s.category || '') === categoryFilter)
     return manageList
   }, [manageList, categoryFilter, uncategorizedValue])
+  const colorMap = categoryColors || {}
 
   const guessFormat = () => {
     if (form.format) return
@@ -247,6 +264,85 @@ export default function LibrarySlide({
               </Box>
             </SortableContext>
           </DndContext>
+        </CardContent>
+      </Card>
+
+      <Card sx={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', mb: 2 }}>
+        <CardContent>
+          <Typography component="h2" sx={{ fontSize: 16, m: 0, mb: 1 }}>Catégories</Typography>
+          <Typography sx={{ color: 'var(--muted)', fontSize: 13, mb: 2 }}>
+            Renommez une catégorie ou changez la couleur du lecteur quand elle est active.
+          </Typography>
+          {categories.length ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {categories.map((cat) => {
+                const draft = categoryDrafts[cat] ?? cat
+                const trimmed = String(draft || '').trim()
+                const canRename = !!trimmed && trimmed !== cat
+                const hasColor = !!colorMap[cat]
+                const colorValue = colorMap[cat] || '#f7f8fa'
+                return (
+                  <Box
+                    key={cat}
+                    sx={{
+                      display: 'grid',
+                      gap: '8px',
+                      gridTemplateColumns: { xs: '1fr', sm: '1.5fr 1fr auto' },
+                      alignItems: 'center',
+                      padding: '8px',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px',
+                      background: '#fff'
+                    }}
+                  >
+                    <TextField
+                      label="Nom"
+                      value={draft}
+                      onChange={(e) => setCategoryDrafts((prev) => ({ ...prev, [cat]: e.target.value }))}
+                      size="small"
+                      fullWidth
+                      sx={{ background: '#fff', borderRadius: '12px' }}
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        Couleur lecteur {hasColor ? '' : '(auto)'}
+                        <input type="color" value={colorValue} onChange={(e) => onSetCategoryColor(cat, e.target.value)} />
+                      </label>
+                      <Button
+                        size="small"
+                        onClick={() => onClearCategoryColor(cat)}
+                        disabled={!hasColor}
+                        sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 90 }}
+                      >
+                        Auto
+                      </Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
+                      <Button
+                        size="small"
+                        onClick={() => onRenameCategory(cat, trimmed)}
+                        disabled={!canRename}
+                        sx={{ border: '1px solid var(--border)', background: '#fff', minWidth: 100 }}
+                      >
+                        Renommer
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => confirm(`Supprimer la catégorie “${cat}” ?`) && onDeleteCategory(cat)}
+                        sx={{ background: 'var(--danger)', color: '#fff', minWidth: 100 }}
+                      >
+                        Supprimer
+                      </Button>
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          ) : (
+            <Typography sx={{ color: 'var(--muted)', fontSize: 13 }}>
+              Aucune catégorie pour le moment.
+            </Typography>
+          )}
         </CardContent>
       </Card>
 

@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
+import { pickReadableText } from './color-utils'
 
 // Utils
 const VERSION = '1.3.0'
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
 
 function useLocalStorage(key, initialValue) {
   const [state, setState] = useState(() => {
     try {
       const v = localStorage.getItem(key)
-      return v ? JSON.parse(v) : initialValue
+      if (!v) return initialValue
+      const parsed = JSON.parse(v)
+      if (isPlainObject(initialValue) && isPlainObject(parsed)) {
+        return { ...initialValue, ...parsed }
+      }
+      return parsed
     } catch {
       return initialValue
     }
@@ -18,32 +28,6 @@ function useLocalStorage(key, initialValue) {
     try { localStorage.setItem(key, JSON.stringify(state)) } catch {}
   }, [key, state])
   return [state, setState]
-}
-
-function hexToRgb(hex) {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex).trim())
-  if (!m) return null
-  return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
-}
-function srgbToLinear(c) {
-  const s = c / 255
-  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-}
-function luminance(rgb) {
-  const r = srgbToLinear(rgb.r), g = srgbToLinear(rgb.g), b = srgbToLinear(rgb.b)
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-function contrastRatio(L1, L2) {
-  const a = Math.max(L1, L2) + 0.05
-  const b = Math.min(L1, L2) + 0.05
-  return a / b
-}
-function pickReadableText(bgHex) {
-  const bg = hexToRgb(bgHex)
-  if (!bg) return '#111827'
-  const contrastBlack = contrastRatio(luminance(bg), luminance({ r: 0, g: 0, b: 0 }))
-  const contrastWhite = contrastRatio(luminance(bg), luminance({ r: 255, g: 255, b: 255 }))
-  return contrastWhite >= contrastBlack ? '#ffffff' : '#111827'
 }
 
 function useLogs() {
@@ -103,6 +87,11 @@ function useStreams(log) {
     try { await fetch('/api/streams', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ streams: next }) }) }
     catch (err) { console.error('Sauvegarde des flux échouée', err) }
   }
+  function replaceAll(next) {
+    const normalized = Array.isArray(next) ? next.map(normalizeStream) : []
+    setStreams(normalized)
+    save(normalized)
+  }
   function seedDemo() {
     const presets = [
       { id: cryptoRandom(), name: 'FIP hifi', url: 'http://icecast.radiofrance.fr/fip-hifi.aac', format: 'aac', favorite: true, notes: 'Radio France', category: 'Découverte' },
@@ -139,7 +128,7 @@ function useStreams(log) {
     setStreams((prev) => { const arr = prev.map((s) => s.id === id ? { ...s, favorite: !s.favorite } : s); save(arr); return arr })
   }
 
-  return { streams, setStreams, upsert, remove, move, toggleFav, loaded }
+  return { streams, setStreams, upsert, remove, move, toggleFav, replaceAll, loaded }
 }
 
 function useSleepTimer(audioRef) {
@@ -182,29 +171,15 @@ export default function App() {
     useSSE: true,
     playerBg: null,
     playerCategory: '',
+    categoryColors: {},
   })
   useEffect(() => { document.body.classList.toggle('compact', !!settings.compactList) }, [settings.compactList])
 
-  // Apply player background via CSS variables
-  useEffect(() => {
-    const root = document.documentElement
-    if (settings.playerBg) {
-      root.style.setProperty('--player-bg', settings.playerBg)
-      const fg = pickReadableText(settings.playerBg)
-      root.style.setProperty('--player-fg', fg)
-      const muted = fg === '#ffffff' ? 'rgba(255,255,255,0.8)' : '#6b7280'
-      root.style.setProperty('--player-muted', muted)
-    } else {
-      root.style.removeProperty('--player-bg')
-      root.style.removeProperty('--player-fg')
-      root.style.removeProperty('--player-muted')
-    }
-  }, [settings.playerBg])
-
-  const { streams, upsert, remove, move, toggleFav, setStreams, loaded: streamsLoaded } = useStreams(addLog)
+  const { streams, upsert, remove, move, toggleFav, replaceAll, setStreams, loaded: streamsLoaded } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
   const UNCATEGORIZED = '__UNCATEGORIZED__'
   const categoryFilter = settings.playerCategory || ''
+  const categoryColors = settings.categoryColors || {}
   const setCategoryFilter = useCallback((value) => {
     setSettings((prev) => ({ ...prev, playerCategory: value }))
   }, [setSettings])
@@ -221,11 +196,80 @@ export default function App() {
       }
     } catch {}
   }, [categoryFilter, setCategoryFilter])
+
+  const activeCategory = categoryFilter && categoryFilter !== UNCATEGORIZED ? categoryFilter : ''
+  const categoryBg = activeCategory ? categoryColors[activeCategory] : null
+  const effectivePlayerBg = categoryBg || settings.playerBg
+
+  // Apply player background via CSS variables
+  useEffect(() => {
+    const root = document.documentElement
+    if (effectivePlayerBg) {
+      root.style.setProperty('--player-bg', effectivePlayerBg)
+      const fg = pickReadableText(effectivePlayerBg)
+      root.style.setProperty('--player-fg', fg)
+      const muted = fg === '#ffffff' ? 'rgba(255,255,255,0.8)' : '#6b7280'
+      root.style.setProperty('--player-muted', muted)
+    } else {
+      root.style.removeProperty('--player-bg')
+      root.style.removeProperty('--player-fg')
+      root.style.removeProperty('--player-muted')
+    }
+  }, [effectivePlayerBg])
   const [libraryCategoryFilter, setLibraryCategoryFilter] = useState('')
   useEffect(() => {
     if (!streamsLoaded || libraryCategoryFilter === UNCATEGORIZED) return
     if (libraryCategoryFilter && !streams.some((s) => (s.category || '') === libraryCategoryFilter)) setLibraryCategoryFilter('')
   }, [streamsLoaded, streams, libraryCategoryFilter, setLibraryCategoryFilter])
+
+  const setCategoryColor = useCallback((category, color) => {
+    if (!category) return
+    setSettings((prev) => ({
+      ...prev,
+      categoryColors: { ...(prev.categoryColors || {}), [category]: color },
+    }))
+  }, [setSettings])
+
+  const clearCategoryColor = useCallback((category) => {
+    if (!category) return
+    setSettings((prev) => {
+      const next = { ...(prev.categoryColors || {}) }
+      if (Object.prototype.hasOwnProperty.call(next, category)) delete next[category]
+      return { ...prev, categoryColors: next }
+    })
+  }, [setSettings])
+
+  const renameCategory = useCallback((from, to) => {
+    const trimmed = String(to || '').trim()
+    if (!from || !trimmed || from === trimmed) return
+    const nextStreams = streams.map((s) => ((s.category || '') === from ? { ...s, category: trimmed } : s))
+    replaceAll(nextStreams)
+    setSettings((prev) => {
+      const nextColors = { ...(prev.categoryColors || {}) }
+      if (Object.prototype.hasOwnProperty.call(nextColors, from)) {
+        if (!Object.prototype.hasOwnProperty.call(nextColors, trimmed)) {
+          nextColors[trimmed] = nextColors[from]
+        }
+        delete nextColors[from]
+      }
+      const nextPlayerCategory = prev.playerCategory === from ? trimmed : prev.playerCategory
+      return { ...prev, playerCategory: nextPlayerCategory, categoryColors: nextColors }
+    })
+    setLibraryCategoryFilter((prev) => (prev === from ? trimmed : prev))
+  }, [streams, replaceAll, setSettings, setLibraryCategoryFilter])
+
+  const deleteCategory = useCallback((category) => {
+    if (!category) return
+    const nextStreams = streams.map((s) => ((s.category || '') === category ? { ...s, category: null } : s))
+    replaceAll(nextStreams)
+    setSettings((prev) => {
+      const nextColors = { ...(prev.categoryColors || {}) }
+      if (Object.prototype.hasOwnProperty.call(nextColors, category)) delete nextColors[category]
+      const nextPlayerCategory = prev.playerCategory === category ? '' : prev.playerCategory
+      return { ...prev, playerCategory: nextPlayerCategory, categoryColors: nextColors }
+    })
+    setLibraryCategoryFilter((prev) => (prev === category ? '' : prev))
+  }, [streams, replaceAll, setSettings, setLibraryCategoryFilter])
 
   // Player state
   const audioRef = useRef(null)
@@ -478,7 +522,11 @@ export default function App() {
     const a = document.createElement('a'); a.href = url; a.download = 'streams.json'; a.click(); URL.revokeObjectURL(url)
   }
   async function importJson(file) {
-    try { const txt = await file.text(); const arr = JSON.parse(txt); if (Array.isArray(arr)) { setStreams(arr) } } catch (e) { addLog('Import JSON invalide', e) }
+    try {
+      const txt = await file.text()
+      const arr = JSON.parse(txt)
+      if (Array.isArray(arr)) replaceAll(arr)
+    } catch (e) { addLog('Import JSON invalide', e) }
   }
 
   // Derived lists
@@ -508,6 +556,7 @@ export default function App() {
           logOpen, setLogOpen, logEntries, copyLog,
           sleepMinutes, setSleepMinutes, sleepLeft,
           playerList, lastId,
+          categoryColors,
           categories: availableCategories,
           categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED,
           onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
@@ -518,6 +567,11 @@ export default function App() {
           onSubmit: submitForm, onClear: clearForm, onPaste: pasteFromClipboard,
           manageList: streams,
           categories: availableCategories,
+          categoryColors,
+          onRenameCategory: renameCategory,
+          onDeleteCategory: deleteCategory,
+          onSetCategoryColor: setCategoryColor,
+          onClearCategoryColor: clearCategoryColor,
           categoryFilter: libraryCategoryFilter,
           onChangeCategoryFilter: setLibraryCategoryFilter,
           uncategorizedValue: UNCATEGORIZED,
@@ -536,7 +590,7 @@ export default function App() {
           onSeed: () => { setStreams((prev) => prev.length ? prev : prev); alert('Exemples ajoutés.') },
           onNuke: () => {
             if (confirm('Tout réinitialiser (flux + réglages) ?')) {
-              localStorage.clear(); setStreams([]); setSettings({ autoResume: true, showLockInfo: true, tryHttp: false, compactList: false, haptics: true, useSSE: true, playerBg: null, playerCategory: '' }); setLastId(null); location.reload()
+              localStorage.clear(); setStreams([]); setSettings({ autoResume: true, showLockInfo: true, tryHttp: false, compactList: false, haptics: true, useSSE: true, playerBg: null, playerCategory: '', categoryColors: {} }); setLastId(null); location.reload()
             }
           }
         }}
