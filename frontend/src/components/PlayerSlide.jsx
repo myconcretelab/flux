@@ -146,23 +146,6 @@ export default function PlayerSlide({
                 ? (cardFg === '#ffffff' ? 'rgba(255,255,255,0.78)' : 'rgba(17,24,39,0.7)')
                 : cardFg)
               : 'var(--muted)'
-            const categoryBadgeStyle = hasCategoryColor
-              ? (isActive
-                ? {
-                  background: cardFg,
-                  color: categoryColor,
-                  border: `1px solid ${categoryColor}`,
-                }
-                : {
-                  background: tintColor(categoryColor, 0.7) || '#fff',
-                  color: categoryColor,
-                  border: `1px solid ${categoryColor}`,
-                })
-              : {
-                background: '#f2f4f7',
-                color: '#111827',
-                border: '1px solid transparent',
-              }
             const formatBadgeStyle = hasCategoryColor
               ? (isActive
                 ? {
@@ -198,9 +181,8 @@ export default function PlayerSlide({
                   sx={{
                     width: '100%',
                     height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
+                    display: 'grid',
+                    gridTemplateAreas: '"stack"',
                     p: '14px',
                     background: cardBg,
                     color: cardFg,
@@ -215,38 +197,38 @@ export default function PlayerSlide({
                     '&:active': { transform: 'translateY(0)' },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                    <Typography sx={{ fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word', flex: 1, color: 'inherit' }}>{s.name}</Typography>
-                    {s.favorite ? <Box component="span" className="badge" sx={{ fontSize: 11, px: '8px', py: '2px', borderRadius: 999, background: 'var(--primary)', color: '#fff', display: 'inline-block' }}>★</Box> : null}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gridArea: 'stack' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
+                      <Typography sx={{
+                        fontWeight: 700,
+                        fontSize: 'clamp(14px, 2.3vw, 18px)',
+                        lineHeight: 1.1,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        wordBreak: 'break-word',
+                        color: 'inherit',
+                      }}>
+                        {s.name}
+                      </Typography>
+                      {s.favorite ? (
+                        <Box component="span" sx={{ fontSize: 13, lineHeight: 1, color: 'inherit', display: 'inline-block' }}>★</Box>
+                      ) : null}
+                    </Box>
                   </Box>
 
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: cardMuted, fontSize: 12 }}>
-                    {s.category ? (
-                      <Box component="span" sx={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        px: '10px',
-                        py: '4px',
-                        borderRadius: 999,
-                        ...categoryBadgeStyle
-                      }}>
-                        📁 {s.category}
-                      </Box>
-                    ) : null}
-                    {s.format ? (
-                      <Box component="span" sx={{
-                        px: '10px',
-                        py: '4px',
-                        borderRadius: 999,
-                        ...formatBadgeStyle,
-                      }}>
-                        {String(s.format).toUpperCase()}
-                      </Box>
-                    ) : null}
-                  </Box>
-
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mt: 'auto' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', gridArea: 'stack', alignSelf: 'end', width: '100%' }}>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: cardMuted, fontSize: 12 }}>
+                      {s.format ? (
+                        <Box component="span" sx={{
+                          px: '10px',
+                          py: '4px',
+                          borderRadius: 999,
+                          ...formatBadgeStyle,
+                        }}>
+                          {String(s.format).toUpperCase()}
+                        </Box>
+                      ) : null}
+                    </Box>
                     {isPlaying ? (
                       <Box aria-hidden="true" sx={{ display: 'flex', alignItems: 'flex-end', gap: '2px', width: 16, height: 16 }}>
                         <Box sx={{ flex: 1, background: cardFg, transformOrigin: 'bottom', animation: 'eq 1s infinite ease-in-out' }} />
