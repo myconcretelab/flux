@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 import { pickReadableText } from './color-utils'
+import { guessStreamFormat } from './format-utils'
 
 // Utils
 const VERSION = '1.3.0'
@@ -505,7 +506,8 @@ export default function App() {
   function clearForm() { setForm(emptyForm) }
   async function submitForm(e) {
     e.preventDefault()
-    const data = { id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: form.format || null, favorite: !!form.favorite, notes: form.notes || null, category: form.category?.trim() || null }
+    const detectedFormat = form.format || guessStreamFormat(form.url)
+    const data = { id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: detectedFormat || null, favorite: !!form.favorite, notes: form.notes || null, category: form.category?.trim() || null }
     if (!data.name || !data.url) return
     await upsert(data); clearForm(); buzz()
   }
@@ -528,6 +530,28 @@ export default function App() {
       if (Array.isArray(arr)) replaceAll(arr)
     } catch (e) { addLog('Import JSON invalide', e) }
   }
+
+  const consolidateFormats = useCallback(() => {
+    if (!streams.length) {
+      alert('Aucun flux à consolider.')
+      return
+    }
+    if (!confirm('Consolider les formats à partir des URLs ?')) return
+    let changed = 0
+    const next = streams.map((s) => {
+      const detected = guessStreamFormat(s.url)
+      if (!detected || (s.format || '') === detected) return s
+      changed += 1
+      return { ...s, format: detected }
+    })
+    if (!changed) {
+      alert('Aucun format à mettre à jour.')
+      return
+    }
+    replaceAll(next)
+    addLog('Formats consolidés', { updated: changed })
+    alert(`${changed} flux mis à jour.`)
+  }, [streams, replaceAll, addLog])
 
   // Derived lists
   const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
@@ -582,6 +606,7 @@ export default function App() {
           onPlay: selectAndPlay,
           onExport: exportJson,
           onImport: importJson,
+          onConsolidateFormats: consolidateFormats,
         }}
         settingsProps={{
           settings,

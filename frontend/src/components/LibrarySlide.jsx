@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Box, Button, Card, CardContent, Typography, TextField, Select, MenuItem } from '../mui'
+import { FORMAT_OPTIONS, guessStreamFormat } from '../format-utils'
 
 const TRASH_ID = 'trash-dropzone'
 
@@ -125,6 +126,7 @@ export default function LibrarySlide({
   form, setForm, onSubmit, onClear, onPaste,
   manageList, onMove, onToggleFav, onEdit, onDelete, onPlay,
   onExport, onImport,
+  onConsolidateFormats,
   categories, categoryColors, onRenameCategory, onDeleteCategory, onSetCategoryColor, onClearCategoryColor,
   categoryFilter, onChangeCategoryFilter, uncategorizedValue,
 }) {
@@ -192,10 +194,7 @@ export default function LibrarySlide({
 
   const guessFormat = () => {
     if (form.format) return
-    const lower = (form.url || '').toLowerCase()
-    const isAac = lower.includes('aac')
-    const isMp3 = lower.includes('mp3')
-    const guess = isAac ? 'aac' : isMp3 ? 'mp3' : ''
+    const guess = guessStreamFormat(form.url)
     if (guess) setForm((prev) => ({ ...prev, format: guess }))
   }
 
@@ -213,6 +212,7 @@ export default function LibrarySlide({
                 Importer JSON
                 <input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
               </label>
+              <Button size="small" onClick={onConsolidateFormats} sx={{ border: '1px solid var(--border)', borderRadius: '12px', background: '#fff', px: 1.5, py: 0.5 }}>Consolider formats</Button>
             </Box>
           </Box>
           <Typography sx={{ color: 'var(--muted)', fontSize: 13, mb: 2 }}>Glissez-déposez pour réordonner, cliquez pour éditer. Déposez sur la corbeille pour supprimer sans polluer l’interface.</Typography>
@@ -413,9 +413,9 @@ export default function LibrarySlide({
               size="small"
               sx={{ background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}
             >
-              <MenuItem value="">Auto</MenuItem>
-              <MenuItem value="mp3">MP3</MenuItem>
-              <MenuItem value="aac">AAC</MenuItem>
+              {FORMAT_OPTIONS.map((opt) => (
+                <MenuItem value={opt.value} key={opt.value || 'auto'}>{opt.label}</MenuItem>
+              ))}
             </Select>
 
             <label className="mui-switch" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
