@@ -7,7 +7,7 @@ const countryLabel = code => { try { return countryNames.of(code) || code } catc
 const urlOf = s => s.url_resolved || s.url
 const detailsOf = s => [s.countrycode && countryLabel(s.countrycode), s.language, s.codec, s.bitrate > 0 ? `${s.bitrate} kb/s` : 'Débit inconnu'].filter(Boolean).join(' · ')
 
-export default function RadioBrowser({ open, onClose, streams, categories, initialCategory, onAdded, onManual }) {
+export default function RadioBrowser({ open, onClose, streams, categories, initialCategory, onAdded, onManual, onPreviewStart }) {
   const mobile = useMediaQuery('(max-width:600px)')
   const [filters, setFilters] = useState(initialFilters)
   const [expanded, setExpanded] = useState(false)
@@ -24,8 +24,47 @@ export default function RadioBrowser({ open, onClose, streams, categories, initi
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const [edit, setEdit] = useState(null)
+  const previewRef = useRef(null)
+  const [preview, setPreview] = useState(null)
+  function stopPreview() {
+    const audio = previewRef.current
+    previewRef.current = null
+    if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load() }
+    setPreview(null)
+  }
+  useEffect(() => {
+    if (!open) stopPreview()
+    return () => {
+      const audio = previewRef.current
+      previewRef.current = null
+      if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load() }
+    }
+  }, [open])
+  async function togglePreview(station) {
+    if (previewRef.current && preview?.id === station.stationuuid) { stopPreview(); return }
+    stopPreview()
+    onPreviewStart()
+    const audio = new Audio(urlOf(station))
+    previewRef.current = audio
+    setPreview({ id: station.stationuuid, status: 'loading' })
+    const fail = () => {
+      if (previewRef.current !== audio) return
+      stopPreview()
+      setPreview({ id: station.stationuuid, status: 'error' })
+    }
+    audio.onerror = fail
+    audio.onended = () => { if (previewRef.current === audio) stopPreview() }
+    const timer = setTimeout(fail, 15000)
+    try {
+      await audio.play()
+      if (previewRef.current !== audio) return
+      setPreview({ id: station.stationuuid, status: 'playing' })
+      fetch('/api/radio-browser/click/' + station.stationuuid, { method: 'POST' }).catch(() => {})
+    } catch { fail() }
+    finally { clearTimeout(timer) }
+  }
   const activeFilters = ['tag', 'countrycode', 'language', 'bitrateMin'].filter(k => filters[k])
-  const change = (key, value) => { setFilters(prev => ({ ...prev, [key]: value })); setOffset(0); setStations([]) }
+  const change = (key, value) => { stopPreview(); setFilters(prev => ({ ...prev, [key]: value })); setOffset(0); setStations([]) }
   useEffect(() => {
     if (!open) return
     const controller = new AbortController()
@@ -66,20 +105,20 @@ export default function RadioBrowser({ open, onClose, streams, categories, initi
   const categoryField = (value, onChange) => <Autocomplete freeSolo options={categories} inputValue={value} onInputChange={(_, v) => onChange(v)} onChange={(_, v) => onChange(v || '')} renderInput={params => <TextField {...params} label="Catégorie d’ajout" placeholder="Choisir ou créer une catégorie" helperText="Vide : sans catégorie" />} />
   return <Dialog open={open} onClose={saving ? undefined : onClose} fullScreen={mobile} fullWidth maxWidth="sm" aria-labelledby="radio-browser-title" PaperProps={{ sx: { borderRadius: mobile ? 0 : 4, height: mobile ? '100dvh' : '90vh', maxHeight: mobile ? '100dvh' : '90vh' } }}>
     <DialogTitle id="radio-browser-title" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 'max(16px, env(safe-area-inset-top))' }}>Ajouter une radio<IconButton aria-label="Fermer la recherche" disabled={saving} onClick={onClose} sx={{ width: 44, height: 44 }}>×</IconButton></DialogTitle>
-    <DialogContent sx={{ px: { xs: 2, sm: 3 }, pb: 'max(24px, env(safe-area-inset-bottom))' }}>
-      <Box sx={{ position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1, pt: 1, pb: 1.5 }}>
+    <Box sx={{ flexShrink: 0, px: { xs: 2, sm: 3 }, pt: 1, pb: 1.5, backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         <TextField fullWidth label="Rechercher une radio" placeholder="FIP, Radio Nova, BBC…" type="search" value={filters.name} onChange={e => change('name', e.target.value)} />
         <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button onClick={() => setExpanded(!expanded)} aria-expanded={expanded} sx={{ minHeight: 44 }}>Filtres{activeFilters.length ? ` (${activeFilters.length})` : ''} {expanded ? '−' : '+'}</Button>
           {activeFilters.map(k => <Chip key={k} label={k === 'countrycode' ? countryLabel(filters[k]) : k === 'bitrateMin' ? `≥ ${filters[k]} kb/s` : filters[k]} onDelete={() => change(k, '')} />)}
         </Box>
       </Box>
+    <DialogContent sx={{ px: { xs: 2, sm: 3 }, pt: 2, minHeight: 0, pb: 'max(24px, env(safe-area-inset-bottom))' }}>
       {expanded && <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, py: 1 }}>
         <Autocomplete options={countries} value={filters.countrycode || null} getOptionLabel={countryLabel} onChange={(_, v) => change('countrycode', v || '')} renderInput={params => <TextField {...params} label="Pays" />} />
         <TextField label="Style / mot-clé" placeholder="jazz, rock…" value={filters.tag} onChange={e => change('tag', e.target.value)} />
         <TextField select label="Langue" value={filters.language} onChange={e => change('language', e.target.value)}>{[['', 'Toutes'], ['french', 'Français'], ['english', 'Anglais'], ['german', 'Allemand'], ['spanish', 'Espagnol'], ['italian', 'Italien'], ['portuguese', 'Portugais']].map(([v, l]) => <MenuItem key={v} value={v}>{l}</MenuItem>)}</TextField>
         <TextField select label="Débit minimum" value={filters.bitrateMin} onChange={e => change('bitrateMin', e.target.value)}>{[['', 'Tous'], ['64', '64 kb/s'], ['128', '128 kb/s'], ['192', '192 kb/s'], ['256', '256 kb/s']].map(([v, l]) => <MenuItem key={v} value={v}>{l}</MenuItem>)}</TextField>
-        <Button onClick={() => { setFilters(initialFilters); setOffset(0); setStations([]) }}>Effacer les filtres</Button>
+        <Button onClick={() => { stopPreview(); setFilters(initialFilters); setOffset(0); setStations([]) }}>Effacer les filtres</Button>
       </Box>}
       <Box sx={{ bgcolor: '#f4f6fa', borderRadius: 3, p: 2, my: 1 }}>
         {categoryField(category, setCategory)}
@@ -98,10 +137,14 @@ export default function RadioBrowser({ open, onClose, streams, categories, initi
           <Typography variant="body2" color="text.secondary" sx={{ my: .5, overflowWrap: 'anywhere' }}>{detailsOf(s)}</Typography>
           {s.tags && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{s.tags.split(',').slice(0, 5).join(' · ')}</Typography>}
           {urlOf(s)?.startsWith('http:') && <Typography variant="caption" color="text.secondary">Flux HTTP : lecture selon la compatibilité du navigateur.</Typography>}
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+            <Button variant="outlined" disabled={!/^https?:\/\//i.test(urlOf(s))} onClick={() => togglePreview(s)} aria-label={`${preview?.id === s.stationuuid && preview.status !== 'error' ? 'Arrêter la préécoute' : 'Préécouter'} : ${s.name}`} aria-pressed={preview?.id === s.stationuuid && preview.status !== 'error'} sx={{ minHeight: 44 }}>
+              {preview?.id === s.stationuuid && preview.status !== 'error' ? (preview.status === 'loading' ? '■ Connexion…' : '■ Arrêter') : '▶ Écouter'}
+            </Button>
             <Button variant={isSaved(s) ? 'outlined' : 'contained'} disabled={isSaved(s) || saving || !/^https?:\/\//i.test(urlOf(s))} onClick={() => add(s)} aria-label={`${isSaved(s) ? 'Déjà enregistrée' : 'Ajouter'} : ${s.name}`} sx={{ minHeight: 44, bgcolor: isSaved(s) ? undefined : 'var(--primary)' }}>{isSaved(s) ? '✓ Enregistrée' : '+ Ajouter'}</Button>
             {!isSaved(s) && <Button disabled={saving} onClick={() => setEdit({ station: s, name: s.name.trim(), category, favorite, notes: [detailsOf(s), s.tags].filter(Boolean).join(' — ') })} sx={{ minHeight: 44 }}>Personnaliser</Button>}
           </Box>
+          {preview?.id === s.stationuuid && preview.status === 'error' && <Alert severity="info" sx={{ mt: 1 }}>Préécoute indisponible pour ce flux. Essayez une autre version de cette radio.</Alert>}
         </Box>)}
       </Box>
       {loading && <Box role="status" sx={{ p: 3, textAlign: 'center' }}><CircularProgress size={24} /><Typography>Recherche en cours…</Typography></Box>}

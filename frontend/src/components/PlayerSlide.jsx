@@ -226,6 +226,7 @@ export default function PlayerSlide({
                           ...formatBadgeStyle,
                         }}>
                           {String(s.format).toUpperCase()}
+                          {Number(s.bitrate) > 0 && <Box component="span" sx={{ ml: .75, pl: .75, borderLeft: '1px solid currentColor', opacity: .7, fontSize: '0.9em', fontWeight: 400, whiteSpace: 'nowrap' }}>{Number(s.bitrate)} kb/s</Box>}
                         </Box>
                       ) : null}
                     </Box>

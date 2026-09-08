@@ -7,7 +7,7 @@ import { pickReadableText } from './color-utils'
 import { guessStreamFormat } from './format-utils'
 
 // Utils
-const VERSION = '1.4.0'
+const VERSION = '1.4.1'
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -567,7 +567,7 @@ export default function App() {
       : categoryFilter
         ? streams.filter((s) => (s.category || '') === categoryFilter)
         : streams
-    return filtered.slice().sort((a, b) => (Number(!!b.favorite) - Number(!!a.favorite)) || a.name.localeCompare(b.name))
+    return filtered
   }, [streams, categoryFilter])
 
   useEffect(() => {
@@ -628,7 +628,7 @@ export default function App() {
       />
 
       <Fab aria-label="Ajouter une radio" onClick={openDiscovery} sx={{ position: 'fixed', right: 'max(16px, env(safe-area-inset-right))', bottom: 'calc(82px + env(safe-area-inset-bottom))', zIndex: 1100, bgcolor: 'var(--primary)', color: '#fff', '&:hover': { bgcolor: '#232b50' }, fontSize: 32 }}>+</Fab>
-      <RadioBrowser key={discoveryKey} open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} streams={streams} categories={availableCategories} initialCategory={activeCategory} onAdded={setStreams} onManual={() => { setDiscoveryOpen(false); clearForm(); goTo(1) }} />
+      <RadioBrowser key={discoveryKey} open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} streams={streams} categories={availableCategories} initialCategory={activeCategory} onAdded={setStreams} onPreviewStart={() => audioRef.current?.pause()} onManual={() => { setDiscoveryOpen(false); clearForm(); goTo(1) }} />
       <AppFooter
         activeIndex={currentSlide}
         onToPlayer={() => goTo(0)}
