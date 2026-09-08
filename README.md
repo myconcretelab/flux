@@ -45,3 +45,18 @@ Les contributions sont les bienvenues. Merci de respecter les points suivants :
 
 Ce projet est mis à disposition sous une licence libre. Vous pouvez l'utiliser
 et le modifier à votre convenance.
+
+## Recherche de radios
+
+Le bouton flottant **+** ouvre Radio Browser en plein écran sur mobile. Recherche
+par nom, filtres pays/style/langue/débit, tri et pagination sont disponibles.
+Choisissez une catégorie existante ou saisissez un nouveau nom, puis ajoutez les
+radios en un clic. **Personnaliser** permet de modifier nom, catégorie, favoris
+et notes avant l'ajout. Les doublons sont détectés par UUID ou URL.
+
+Le serveur interroge les miroirs Radio Browser découverts par DNS, avec délais
+limités et repli sur un autre miroir. Aucun jeton API n'est nécessaire. Les flux
+HTTP et HLS restent soumis aux possibilités de lecture du navigateur.
+
+Validation : `node --test tests/radio-browser.test.js`, puis
+`npm --prefix frontend run build`.

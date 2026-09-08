@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import RadioBrowser from './components/RadioBrowser'
+import { Fab } from '@mui/material'
 import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 import { pickReadableText } from './color-utils'
 import { guessStreamFormat } from './format-utils'
 
 // Utils
-const VERSION = '1.3.0'
+const VERSION = '1.4.0'
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -157,6 +159,9 @@ function useSleepTimer(audioRef) {
 }
 
 export default function App() {
+  const [discoveryOpen, setDiscoveryOpen] = useState(false)
+  const [discoveryKey, setDiscoveryKey] = useState(0)
+  function openDiscovery() { setDiscoveryKey(k => k + 1); setDiscoveryOpen(true) }
   const [currentSlide, setCurrentSlide] = useState(0)
   const slidesRef = useRef(null)
 
@@ -419,6 +424,7 @@ export default function App() {
   }
   useEffect(() => {
     const onKey = (e) => {
+      if (discoveryOpen || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.target.isContentEditable) return
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const target = e.key === 'ArrowLeft' ? Math.max(0, currentSlide - 1) : Math.min(2, currentSlide + 1)
         goTo(target)
@@ -426,7 +432,7 @@ export default function App() {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [currentSlide])
+  }, [currentSlide, discoveryOpen])
 
   // Actions
   function buzz() { try { if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(10) } catch {} }
@@ -489,6 +495,7 @@ export default function App() {
   }
   function selectAndPlay(id) {
     const s = streams.find((x) => x.id === id); if (!s) return
+    if (s.radioBrowserId) fetch('/api/radio-browser/click/' + s.radioBrowserId, { method: 'POST' }).catch(() => {})
     triedAltRef.current = false
     setLastId(s.id); setNowName(s.name); addLog('Sélection du flux', { id: s.id, name: s.name, url: s.url })
     playUrl(s.url)
@@ -502,12 +509,12 @@ export default function App() {
   // Form state
   const emptyForm = { id: '', name: '', url: '', format: '', favorite: false, notes: '', category: '' }
   const [form, setForm] = useState(emptyForm)
-  function loadToForm(s) { setForm({ id: s.id, name: s.name, url: s.url, format: s.format || '', favorite: !!s.favorite, notes: s.notes || '', category: s.category || '' }) }
+  function loadToForm(s) { setForm({ ...s, id: s.id, name: s.name, url: s.url, format: s.format || '', favorite: !!s.favorite, notes: s.notes || '', category: s.category || '' }) }
   function clearForm() { setForm(emptyForm) }
   async function submitForm(e) {
     e.preventDefault()
     const detectedFormat = form.format || guessStreamFormat(form.url)
-    const data = { id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: detectedFormat || null, favorite: !!form.favorite, notes: form.notes || null, category: form.category?.trim() || null }
+    const data = { ...form, id: form.id || (globalThis.crypto?.randomUUID?.() || ('id-' + Math.random().toString(36).slice(2) + Date.now().toString(36))), name: form.name.trim(), url: form.url.trim(), format: detectedFormat || null, favorite: !!form.favorite, notes: form.notes || null, category: form.category?.trim() || null }
     if (!data.name || !data.url) return
     await upsert(data); clearForm(); buzz()
   }
@@ -515,7 +522,6 @@ export default function App() {
     if (!navigator.clipboard) return
     try { const txt = (await navigator.clipboard.readText()).trim(); if (txt) setForm((f) => ({ ...f, url: txt })) } catch {}
   }
-  function addQuickFromClipboard() { pasteFromClipboard(); goTo(1) }
 
   // Import / Export
   function exportJson() {
@@ -584,7 +590,7 @@ export default function App() {
           categories: availableCategories,
           categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED,
           onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
-          onAddQuick: addQuickFromClipboard,
+          onAddQuick: openDiscovery,
         }}
         libraryProps={{
           form, setForm,
@@ -621,6 +627,8 @@ export default function App() {
         }}
       />
 
+      <Fab aria-label="Ajouter une radio" onClick={openDiscovery} sx={{ position: 'fixed', right: 'max(16px, env(safe-area-inset-right))', bottom: 'calc(82px + env(safe-area-inset-bottom))', zIndex: 1100, bgcolor: 'var(--primary)', color: '#fff', '&:hover': { bgcolor: '#232b50' }, fontSize: 32 }}>+</Fab>
+      <RadioBrowser key={discoveryKey} open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} streams={streams} categories={availableCategories} initialCategory={activeCategory} onAdded={setStreams} onManual={() => { setDiscoveryOpen(false); clearForm(); goTo(1) }} />
       <AppFooter
         activeIndex={currentSlide}
         onToPlayer={() => goTo(0)}

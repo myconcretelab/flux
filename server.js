@@ -8,6 +8,7 @@ const icy = require('icy');
 const { http, https } = require('follow-redirects');
 const meta = require('./radio-metadata-utils'); // ← ta mini-lib centralisée (ICY, Icecast, RF, AzuraCast, etc.)
 
+const radioBrowser = require('./radio-browser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const STREAM_FILE = './streams.json';
@@ -32,7 +33,16 @@ async function readStreams() {
   try { const data = await fs.readFile(STREAM_FILE, 'utf8'); return JSON.parse(data); }
   catch (err) { if (err.code === 'ENOENT') return []; throw err; }
 }
-async function writeStreams(list) { await fs.writeFile(STREAM_FILE, JSON.stringify(list, null, 2)); }
+async function writeStreams(list) {
+  await fs.writeFile(STREAM_FILE + '.tmp', JSON.stringify(list, null, 2));
+  await fs.rename(STREAM_FILE + '.tmp', STREAM_FILE);
+}
+let streamWrites = Promise.resolve();
+function mutateStreams(operation) {
+  const result = streamWrites.then(operation);
+  streamWrites = result.catch(() => {});
+  return result;
+}
 
 function getStreamWithRedirects(u, options, onResponse, onError) {
   const mod = u.startsWith('https') ? https : http;
@@ -48,8 +58,45 @@ app.get('/api/streams', async (_req, res) => {
 
 app.put('/api/streams', async (req, res) => {
   const streams = Array.isArray(req.body.streams) ? req.body.streams : [];
-  await writeStreams(streams);
-  res.json({ ok: true });
+  try { await mutateStreams(() => writeStreams(streams)); res.json({ ok: true }); }
+  catch { res.status(500).json({ error: 'Sauvegarde impossible' }); }
+});
+
+/* Radio Browser: same-origin proxy with mirror failover. */
+app.get('/api/radio-browser/search', async (req, res) => {
+  try {
+    const rows = await radioBrowser.request('stations/search?' + radioBrowser.searchParams(req.query));
+    if (!Array.isArray(rows)) throw new Error('Réponse inattendue de Radio Browser');
+    res.json({ stations: rows.slice(0, 30), hasMore: rows.length > 30 });
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+let countryCache;
+app.get('/api/radio-browser/countries', async (_req, res) => {
+  try {
+    if (!countryCache || countryCache.expires < Date.now()) countryCache = { rows: await radioBrowser.request('countrycodes?hidebroken=true'), expires: Date.now() + 86400000 };
+    res.json(countryCache.rows);
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+app.post('/api/streams/radio-browser', async (req, res) => {
+  const s = req.body;
+  if (!/^[a-f0-9-]{36}$/i.test(s.radioBrowserId || '') || typeof s.name !== 'string' || !s.name.trim() || typeof s.url !== 'string' || !/^https?:\/\//i.test(s.url)) return res.status(400).json({ error: 'Radio invalide' });
+  try {
+    const result = await mutateStreams(async () => {
+      const streams = await readStreams();
+      const existing = streams.find(row => row.radioBrowserId === s.radioBrowserId || row.url === s.url);
+      if (existing) return { streams, duplicate: true };
+      const text = (v, max = 500) => typeof v === 'string' ? v.trim().slice(0, max) : '';
+      streams.push({ id: require('node:crypto').randomUUID(), radioBrowserId: s.radioBrowserId, name: text(s.name), url: text(s.url, 4096), format: text(s.format, 30), category: text(s.category, 100) || null, notes: text(s.notes, 2000), favorite: !!s.favorite, bitrate: Number(s.bitrate) || null });
+      await writeStreams(streams);
+      return { streams, duplicate: false };
+    });
+    res.json(result);
+  } catch { res.status(500).json({ error: 'Enregistrement impossible. Réessayez.' }); }
+});
+app.post('/api/radio-browser/click/:uuid', async (req, res) => {
+  if (!/^[a-f0-9-]{36}$/i.test(req.params.uuid)) return res.sendStatus(400);
+  try { await radioBrowser.request('url/' + req.params.uuid); res.sendStatus(204); }
+  catch { res.sendStatus(502); }
 });
 
 /* -------------------------- One-shot: /api/metadata --------------------------
