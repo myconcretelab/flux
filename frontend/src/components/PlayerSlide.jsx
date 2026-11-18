@@ -1,12 +1,12 @@
 import deezerLogo from '../assets/Logo_Deezer_2023.svg'
-import { Box, Button, Card, CardContent, Typography, Select, MenuItem } from '../mui'
+import { Box, Button, IconButton, Card, CardContent, Typography, Select, MenuItem } from '../mui'
 import { pickReadableText, tintColor } from '../color-utils'
 
 export default function PlayerSlide({
   nowName, nowMeta, playing, playbackMessage, previewing, canPlay, onPlayPause, audioRef, deezerHref,
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
-  playerList, lastId, onPlayItem, onAddQuick,
+  playerList, lastId, onPlayItem, onToggleFav, onAddQuick,
   categories, categoryFilter, setCategoryFilter, uncategorizedValue, favoritesValue,
   categoryColors = {},
 }) {
@@ -122,7 +122,7 @@ export default function PlayerSlide({
         </Box>
         {categoryFilter === favoritesValue && playerList.length === 0 && (
           <Typography role="status" sx={{ color: 'var(--muted)', fontSize: 13, mb: 2 }}>
-            Aucun favori pour le moment. Ajoutez une radio aux favoris avec l’étoile dans la bibliothèque.
+            Aucun favori pour le moment. Affichez toutes les catégories, puis touchez l’étoile d’une station.
           </Typography>
         )}
         <Box
@@ -189,8 +189,8 @@ export default function PlayerSlide({
                   sx={{
                     width: '100%',
                     height: '100%',
-                    display: 'grid',
-                    gridTemplateAreas: '"stack"',
+                    display: 'flex',
+                    flexDirection: 'column',
                     p: '14px',
                     background: cardBg,
                     color: cardFg,
@@ -203,9 +203,10 @@ export default function PlayerSlide({
                     transition: 'transform 0.15s ease',
                     '&:hover': { transform: 'translateY(-1px)' },
                     '&:active': { transform: 'translateY(0)' },
+                    '&:focus-visible': { outline: `2px solid ${cardFg}`, outlineOffset: -3 },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gridArea: 'stack' }}>
+                  <Box sx={{ display: 'flex', flex: 1, minHeight: 0, pt: '30px', pb: '12px', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textAlign: 'center', flexWrap: 'wrap' }}>
                       <Typography sx={{
                         fontWeight: 700,
@@ -215,16 +216,17 @@ export default function PlayerSlide({
                         textTransform: 'uppercase',
                         wordBreak: 'break-word',
                         color: 'inherit',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}>
                         {s.name}
                       </Typography>
-                      {s.favorite ? (
-                        <Box component="span" sx={{ fontSize: 13, lineHeight: 1, color: 'inherit', display: 'inline-block' }}>★</Box>
-                      ) : null}
                     </Box>
                   </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', gridArea: 'stack', alignSelf: 'end', width: '100%' }}>
+                  <Box sx={{ display: 'flex', flexShrink: 0, minHeight: 24, alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', rowGap: '6px', color: cardMuted, fontSize: 12 }}>
                       {s.format ? (
                         <Box component="span" sx={{
@@ -247,6 +249,34 @@ export default function PlayerSlide({
                     ) : null}
                   </Box>
                 </Box>
+                <IconButton
+                  type="button"
+                  aria-label={s.favorite ? `Retirer ${s.name} des favoris` : `Ajouter ${s.name} aux favoris`}
+                  aria-pressed={!!s.favorite}
+                  title={s.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  onClick={(event) => { event.stopPropagation(); onToggleFav(s.id) }}
+                  sx={{
+                    position: 'absolute', top: 6, right: 6,
+                    width: 44, height: 44, p: '6px',
+                    color: s.favorite ? '#9a6700' : (isActive && hasCategoryColor ? cardFg : '#64748b'),
+                    backgroundColor: 'transparent',
+                    transition: 'transform 150ms ease',
+                    '&::before': {
+                      content: '""', position: 'absolute', inset: 6, borderRadius: '50%',
+                      backgroundColor: s.favorite ? '#fff4d6' : 'transparent',
+                      transition: 'background-color 150ms ease',
+                    },
+                    '&:hover': { backgroundColor: 'transparent' },
+                    '&:hover::before': { backgroundColor: s.favorite ? '#ffeab5' : (cardFg === '#ffffff' ? 'rgba(255,255,255,0.14)' : 'rgba(100,116,139,0.1)') },
+                    '&:active': { transform: 'scale(0.92)' },
+                    '&.Mui-focusVisible': { outline: `2px solid ${cardFg}`, outlineOffset: -2 },
+                    '@media (prefers-reduced-motion: reduce)': { transition: 'none', '&::before': { transition: 'none' } },
+                  }}
+                >
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="20" height="20" fill={s.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'relative' }}>
+                    <path d="m12 3 2.78 5.63 6.22.91-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z" />
+                  </svg>
+                </IconButton>
               </Box>
             )
           })}

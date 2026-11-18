@@ -14,6 +14,8 @@ L'interface se compose de trois panneaux glissables :
 - Lecture et pause d'un flux audio ; la reprise rouvre le flux au direct.
 - Préparation du dernier flux écouté au démarrage, sans lecture automatique imposée.
 - Liste de flux favoris ou personnalisés avec notes et format.
+- Étoile activable sur chaque pad de station pour ajouter ou retirer un favori
+  sans modifier la lecture en cours.
 - Filtre dynamique **★ Favoris** dans le lecteur et la bibliothèque, toutes
   catégories confondues, actualisé dès qu'une étoile est ajoutée ou retirée.
 - Import et export de la liste au format JSON.

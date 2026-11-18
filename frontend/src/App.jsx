@@ -8,7 +8,7 @@ import { guessStreamFormat } from './format-utils'
 import { useRadioPlayer } from './use-radio-player'
 
 // Utils
-const VERSION = '1.4.3'
+const VERSION = '1.4.4'
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -420,6 +420,7 @@ export default function App() {
           categories: availableCategories,
           categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED, favoritesValue: FAVORITES,
           onPlayItem: (id) => { if (id === lastId && !playback.previewing) onPlayPause(); else selectAndPlay(id) },
+          onToggleFav: (id) => { toggleFav(id); buzz() },
           onAddQuick: openDiscovery,
         }}
         libraryProps={{
