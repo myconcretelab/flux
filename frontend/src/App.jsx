@@ -5,9 +5,10 @@ import Slides from './components/Slides'
 import AppFooter from './components/AppFooter'
 import { pickReadableText } from './color-utils'
 import { guessStreamFormat } from './format-utils'
+import { useRadioPlayer } from './use-radio-player'
 
 // Utils
-const VERSION = '1.4.1'
+const VERSION = '1.4.2'
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -35,7 +36,7 @@ function useLocalStorage(key, initialValue) {
 
 function useLogs() {
   const [entries, setEntries] = useState([])
-  const add = (msg, obj) => {
+  const add = useCallback((msg, obj) => {
     const time = new Date().toLocaleTimeString()
     let detail = obj
     try {
@@ -43,8 +44,8 @@ function useLogs() {
       if (obj instanceof Error) detail = { name: obj.name, message: obj.message, stack: obj.stack }
       else if (obj && typeof obj === 'object' && 'code' in obj && 'message' in obj && 'name' in obj) detail = { name: obj.name, message: obj.message, code: obj.code }
     } catch {}
-    setEntries((e) => [...e, { time, msg, obj: detail }])
-  }
+    setEntries((e) => [...e.slice(-299), { time, msg, obj: detail }])
+  }, [])
   const clear = () => setEntries([])
   const copy = async () => {
     const txt = entries.map((e) => `[${e.time}] ${e.msg}\n${e.obj ? JSON.stringify(e.obj, null, 2) : ''}`).join('\n')
@@ -134,27 +135,34 @@ function useStreams(log) {
   return { streams, setStreams, upsert, remove, move, toggleFav, replaceAll, loaded }
 }
 
-function useSleepTimer(audioRef) {
+function useSleepTimer(pause) {
   const [minutes, setMinutes] = useState(0)
   const [label, setLabel] = useState('')
   const etaRef = useRef(0)
   useEffect(() => {
     let timer = null
     if (minutes > 0) {
+      let expired = false
       etaRef.current = Date.now() + minutes * 60 * 1000
-      timer = setInterval(() => {
+      const tick = () => {
+        if (expired) return
         const left = Math.max(0, etaRef.current - Date.now())
         const m = Math.floor(left / 60000)
         const s = Math.floor((left % 60000) / 1000)
         setLabel(`Extinction dans ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`)
         if (left <= 0) {
+          expired = true
           clearInterval(timer); timer = null; setLabel('Extinction effectuée.')
-          const a = audioRef.current; if (a) { a.pause(); a.currentTime = 0 }
+          document.removeEventListener('visibilitychange', tick)
+          pause()
         }
-      }, 500)
+      }
+      tick()
+      timer = setInterval(tick, 500)
+      document.addEventListener('visibilitychange', tick)
+      return () => { clearInterval(timer); document.removeEventListener('visibilitychange', tick) }
     } else { setLabel('') }
-    return () => { if (timer) clearInterval(timer) }
-  }, [minutes])
+  }, [minutes, pause])
   return { minutes, setMinutes, label }
 }
 
@@ -277,134 +285,27 @@ export default function App() {
     setLibraryCategoryFilter((prev) => (prev === category ? '' : prev))
   }, [streams, replaceAll, setSettings, setLibraryCategoryFilter])
 
-  // Player state
-  const audioRef = useRef(null)
-  const [playing, setPlaying] = useState(false)
-  const [nowName, setNowName] = useState('Aucun flux')
-  const [nowMeta, setNowMeta] = useState('')
-  const [deezerHref, setDeezerHref] = useState('')
+  // Derived lists
+  const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
+  const playerList = useMemo(() => {
+    const filtered = categoryFilter === UNCATEGORIZED
+      ? streams.filter((s) => !s.category)
+      : categoryFilter
+        ? streams.filter((s) => (s.category || '') === categoryFilter)
+        : streams
+    return filtered
+  }, [streams, categoryFilter])
 
   const current = useMemo(() => streams.find((s) => s.id === lastId) || null, [streams, lastId])
-
-  // Auto-resume on load
-  useEffect(() => {
-    const a = audioRef.current
-    if (!a) return
-    if (settings.autoResume && current) {
-      setNowName(current.name)
-      a.src = current.url
-    }
-  }, [settings.autoResume, current])
-
-  // Audio events
-  useEffect(() => {
-    const a = audioRef.current
-    if (!a) return
-    const onPlay = () => {
-      setPlaying(true); setNowMeta(''); setDeezerHref(''); addLog('Lecture démarrée')
-      setMediaSession()
-      try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing' } catch {}
-      const effUrl = (audioRef.current && audioRef.current.src) || (current && current.url) || ''
-      if (settings.useSSE) startSSEFor(effUrl); else startPollingFor(effUrl)
-    }
-    const onPause = () => { setPlaying(false); stopSSE(); stopPolling(); addLog('Lecture stoppée'); try { if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused' } catch {} }
-    const onError = () => { const err = a.error; addLog('Erreur audio', err ? { code: err.code } : {}) }
-    const onLoadedMeta = () => addLog('Meta audio chargées', { duration: a.duration })
-    const onCanPlay = () => addLog('Prêt à lire (canplay)')
-    const onCanPlayThrough = () => addLog('Prêt à lire (canplaythrough)')
-    const onWaiting = () => addLog('Attente buffer (waiting)')
-    const onStalled = () => addLog('Flux bloqué (stalled)')
-    const onPlaying = () => addLog('Lecture en cours (playing)')
-    const onEnded = () => addLog('Lecture terminée (ended)')
-    a.addEventListener('play', onPlay)
-    a.addEventListener('pause', onPause)
-    a.addEventListener('error', onError)
-    a.addEventListener('loadedmetadata', onLoadedMeta)
-    a.addEventListener('canplay', onCanPlay)
-    a.addEventListener('canplaythrough', onCanPlayThrough)
-    a.addEventListener('waiting', onWaiting)
-    a.addEventListener('stalled', onStalled)
-    a.addEventListener('playing', onPlaying)
-    a.addEventListener('ended', onEnded)
-    return () => {
-      a.removeEventListener('play', onPlay)
-      a.removeEventListener('pause', onPause)
-      a.removeEventListener('error', onError)
-      a.removeEventListener('loadedmetadata', onLoadedMeta)
-      a.removeEventListener('canplay', onCanPlay)
-      a.removeEventListener('canplaythrough', onCanPlayThrough)
-      a.removeEventListener('waiting', onWaiting)
-      a.removeEventListener('stalled', onStalled)
-      a.removeEventListener('playing', onPlaying)
-      a.removeEventListener('ended', onEnded)
-    }
-  }, [settings.useSSE, current])
-
-  function setMediaSession() {
-    const a = audioRef.current
-    if (!('mediaSession' in navigator) || !a || !current) return
-    if (settings.showLockInfo) {
-      // eslint-disable-next-line no-undef
-      navigator.mediaSession.metadata = new window.MediaMetadata({ title: current.name, artist: current.notes || '', album: 'StreamDeck' })
-    } else { navigator.mediaSession.metadata = null }
-    navigator.mediaSession.setActionHandler('play', () => a.play().catch(() => {}))
-    navigator.mediaSession.setActionHandler('pause', () => a.pause())
-    navigator.mediaSession.setActionHandler('stop', () => { a.pause(); a.currentTime = 0 })
-    navigator.mediaSession.setActionHandler('previoustrack', null)
-    navigator.mediaSession.setActionHandler('nexttrack', null)
-  }
-
-  // Enregistre les handlers Media Session dès qu’un flux est sélectionné
-  useEffect(() => {
-    setMediaSession()
-  }, [current, settings.showLockInfo])
-
-  // Metadata (SSE / Polling)
-  const sseRef = useRef(null)
-  const pollRef = useRef(null)
-  function stopSSE() { try { sseRef.current?.close?.() } catch {}; sseRef.current = null }
-  function stopPolling() { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
-
-  function getWaitMsForCurrent() { return 0 }
-  async function refreshMetadataOnceFor(url) {
-    if (!url) return
-    try {
-      const q = new URLSearchParams({ url, forceHttp: String(!!settings.tryHttp) })
-      const res = await fetch('/api/metadata?' + q.toString())
-      const info = await res.json()
-      handleMetadataResponse(info)
-    } catch (err) { setNowMeta('erreur'); addLog('Erreur de requête', err) }
-  }
-  function handleMetadataResponse(info) {
-    if (info?.ok) {
-      const meta = info.StreamTitle || info.title || info['icy-name']
-      if (meta) { showMeta(meta); addLog('Diag (one-shot OK)', info) }
-      else { setNowMeta('Aucune information trouvée'); addLog('Aucune information trouvée (one-shot)', info) }
-    } else { setNowMeta('Aucune info (diag dans le journal)'); addLog('Diag (one-shot)', info) }
-  }
-  function startPollingFor(url) {
-    stopPolling(); refreshMetadataOnceFor(url); pollRef.current = setInterval(() => refreshMetadataOnceFor(url), 30000)
-  }
-  function startSSEFor(url) {
-    stopSSE(); if (!url) return
-    const wait = getWaitMsForCurrent();
-    const q = new URLSearchParams({ url, forceHttp: String(!!settings.tryHttp) })
-    if (wait) q.set('waitMs', String(wait))
-    const sseUrl = '/api/metadata/live?' + q.toString(); addLog('Connexion SSE : ' + sseUrl)
-    const es = new EventSource(sseUrl); sseRef.current = es
-    es.addEventListener('open', () => addLog('SSE ouvert'))
-    es.addEventListener('status', (e) => { try { const data = JSON.parse(e.data); addLog('SSE status', data); if (data?.StreamTitle) showMeta(data.StreamTitle); else setNowMeta((v) => v || '…') } catch {} })
-    es.addEventListener('metadata', (e) => { try { const data = JSON.parse(e.data); const meta = data?.StreamTitle || data?.title || data?.['icy-name']; if (meta) showMeta(meta) } catch {} })
-    es.addEventListener('end', () => { addLog('SSE terminé'); stopSSE(); startPollingFor(url) })
-    es.onerror = () => { addLog('SSE erreur (bascule en polling)'); stopSSE(); startPollingFor(url) }
-  }
-  function showMeta(meta) {
-    setNowMeta(meta)
-    try { setDeezerHref('https://www.deezer.com/search/' + encodeURIComponent(meta)) } catch {}
-  }
-
-  // Sleep timer
-  const { minutes: sleepMinutes, setMinutes: setSleepMinutes, label: sleepLeft } = useSleepTimer(audioRef)
+  const { audioRef, playback, title, select, pause, toggle: onPlayPause, preview, stopPreview } = useRadioPlayer({
+    current, playlist: playerList, settings, onSelect: setLastId, log: addLog,
+  })
+  const playing = playback.active
+  const nowName = playback.station?.name || 'Aucun flux'
+  const nowMeta = title
+  const deezerHref = title ? 'https://www.deezer.com/search/' + encodeURIComponent(title) : ''
+  const playbackMessage = playback.error || (playback.status === 'reconnecting' ? 'Reconnexion au direct…' : playback.status === 'loading' ? 'Connexion au direct…' : '')
+  const { minutes: sleepMinutes, setMinutes: setSleepMinutes, label: sleepLeft } = useSleepTimer(pause)
 
   // Pager / slides
   useEffect(() => {
@@ -436,74 +337,12 @@ export default function App() {
 
   // Actions
   function buzz() { try { if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(10) } catch {} }
-  const triedAltRef = useRef(false)
-  function toggleProtocol(url) {
-    if (!/^https?:\/\//i.test(url)) return url
-    return url.startsWith('https://') ? 'http://' + url.slice('https://'.length) : 'https://' + url.slice('http://'.length)
-  }
-  const switchingRef = useRef(false)
-  async function playUrl(url) {
-    const a = audioRef.current; if (!a) return
-    if (switchingRef.current) return
-    switchingRef.current = true
-    // Arrête toute lecture et nettoyage SSE/polling pendant le switch
-    try { a.pause() } catch {}
-    stopSSE(); stopPolling()
-    a.src = url
-    try { a.load() } catch {}
-
-    // Fallback: relance play dès que le flux devient lisible
-    const onCanPlay = async () => {
-      try {
-        if (a.paused) { addLog('Relance après canplay'); await a.play() }
-      } catch (e) {
-        if (!(e && e.name === 'AbortError')) addLog('Lecture impossible (canplay)', e || {})
-      } finally {
-        a.removeEventListener('canplay', onCanPlay)
-        switchingRef.current = false
-      }
-    }
-    a.addEventListener('canplay', onCanPlay, { once: true })
-
-    // Tentative immédiate (léger délai pour laisser load() initialiser)
-    try {
-      await new Promise(r => setTimeout(r, 25))
-      addLog('Tentative lecture', { url, readyState: a.readyState, paused: a.paused })
-      a.currentTime = 0
-      await a.play()
-      a.removeEventListener('canplay', onCanPlay)
-      switchingRef.current = false
-    } catch (e) {
-      if (e && e.name === 'AbortError') {
-        // canplay s’en chargera
-        return
-      }
-      addLog('Lecture impossible', e || {})
-      a.removeEventListener('canplay', onCanPlay)
-      if (settings.tryHttp && !triedAltRef.current) {
-        const alt = toggleProtocol(url)
-        if (alt && alt !== url) {
-          triedAltRef.current = true
-          addLog('Essai protocole alternatif', { from: url.slice(0, 5), to: alt.slice(0, 5) })
-          switchingRef.current = false
-          return playUrl(alt)
-        }
-      }
-      alert('Lecture impossible. Voir journal.')
-      switchingRef.current = false
-    }
-  }
   function selectAndPlay(id) {
-    const s = streams.find((x) => x.id === id); if (!s) return
-    if (s.radioBrowserId) fetch('/api/radio-browser/click/' + s.radioBrowserId, { method: 'POST' }).catch(() => {})
-    triedAltRef.current = false
-    setLastId(s.id); setNowName(s.name); addLog('Sélection du flux', { id: s.id, name: s.name, url: s.url })
-    playUrl(s.url)
-  }
-  function onPlayPause() {
-    const a = audioRef.current; if (!a) return
-    if (a.paused) { if (a.ended || a.readyState === 0) a.load(); a.play().catch((e) => { addLog('Lecture impossible', e); alert('Lecture impossible. Voir journal.') }) }
-    else { a.pause(); a.currentTime = 0 }
+    const stream = streams.find((s) => s.id === id)
+    if (!stream) return
+    if (stream.radioBrowserId) fetch('/api/radio-browser/click/' + stream.radioBrowserId, { method: 'POST' }).catch(() => {})
+    addLog('Sélection du flux', { id: stream.id, name: stream.name, url: stream.url })
+    void select(stream)
   }
 
   // Form state
@@ -559,17 +398,6 @@ export default function App() {
     alert(`${changed} flux mis à jour.`)
   }, [streams, replaceAll, addLog])
 
-  // Derived lists
-  const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
-  const playerList = useMemo(() => {
-    const filtered = categoryFilter === UNCATEGORIZED
-      ? streams.filter((s) => !s.category)
-      : categoryFilter
-        ? streams.filter((s) => (s.category || '') === categoryFilter)
-        : streams
-    return filtered
-  }, [streams, categoryFilter])
-
   useEffect(() => {
     if (!streamsLoaded || categoryFilter === UNCATEGORIZED) return
     if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
@@ -580,7 +408,7 @@ export default function App() {
       <Slides
         slidesRef={slidesRef}
         playerProps={{
-          nowName, nowMeta, playing,
+          nowName, nowMeta, playing, playbackMessage, previewing: playback.previewing, canPlay: !!playback.station,
           onPlayPause, audioRef,
           deezerHref,
           logOpen, setLogOpen, logEntries, copyLog,
@@ -589,7 +417,7 @@ export default function App() {
           categoryColors,
           categories: availableCategories,
           categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED,
-          onPlayItem: (id) => { if (id === lastId && playing) { const a = audioRef.current; a.pause(); a.currentTime = 0 } else { selectAndPlay(id) } },
+          onPlayItem: (id) => { if (id === lastId && !playback.previewing) onPlayPause(); else selectAndPlay(id) },
           onAddQuick: openDiscovery,
         }}
         libraryProps={{
@@ -628,7 +456,7 @@ export default function App() {
       />
 
       <Fab aria-label="Ajouter une radio" onClick={openDiscovery} sx={{ position: 'fixed', right: 'max(16px, env(safe-area-inset-right))', bottom: 'calc(82px + env(safe-area-inset-bottom))', zIndex: 1100, bgcolor: 'var(--primary)', color: '#fff', '&:hover': { bgcolor: '#232b50' }, fontSize: 32 }}>+</Fab>
-      <RadioBrowser key={discoveryKey} open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} streams={streams} categories={availableCategories} initialCategory={activeCategory} onAdded={setStreams} onPreviewStart={() => audioRef.current?.pause()} onManual={() => { setDiscoveryOpen(false); clearForm(); goTo(1) }} />
+      <RadioBrowser key={discoveryKey} open={discoveryOpen} onClose={() => setDiscoveryOpen(false)} streams={streams} categories={availableCategories} initialCategory={activeCategory} onAdded={setStreams} onPreview={preview} onStopPreview={stopPreview} playback={playback} onManual={() => { setDiscoveryOpen(false); clearForm(); goTo(1) }} />
       <AppFooter
         activeIndex={currentSlide}
         onToPlayer={() => goTo(0)}

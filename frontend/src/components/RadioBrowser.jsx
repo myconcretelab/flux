@@ -7,7 +7,7 @@ const countryLabel = code => { try { return countryNames.of(code) || code } catc
 const urlOf = s => s.url_resolved || s.url
 const detailsOf = s => [s.countrycode && countryLabel(s.countrycode), s.language, s.codec, s.bitrate > 0 ? `${s.bitrate} kb/s` : 'Débit inconnu'].filter(Boolean).join(' · ')
 
-export default function RadioBrowser({ open, onClose, streams, categories, initialCategory, onAdded, onManual, onPreviewStart }) {
+export default function RadioBrowser({ open, onClose, streams, categories, initialCategory, onAdded, onManual, onPreview, onStopPreview, playback }) {
   const mobile = useMediaQuery('(max-width:600px)')
   const [filters, setFilters] = useState(initialFilters)
   const [expanded, setExpanded] = useState(false)
@@ -24,44 +24,16 @@ export default function RadioBrowser({ open, onClose, streams, categories, initi
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const [edit, setEdit] = useState(null)
-  const previewRef = useRef(null)
-  const [preview, setPreview] = useState(null)
-  function stopPreview() {
-    const audio = previewRef.current
-    previewRef.current = null
-    if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load() }
-    setPreview(null)
-  }
+  const preview = playback.previewing ? { id: playback.station?.id, active: playback.active, status: playback.status } : null
+  function stopPreview() { onStopPreview() }
   useEffect(() => {
-    if (!open) stopPreview()
-    return () => {
-      const audio = previewRef.current
-      previewRef.current = null
-      if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load() }
-    }
-  }, [open])
+    if (!open) onStopPreview()
+    return onStopPreview
+  }, [open, onStopPreview])
   async function togglePreview(station) {
-    if (previewRef.current && preview?.id === station.stationuuid) { stopPreview(); return }
-    stopPreview()
-    onPreviewStart()
-    const audio = new Audio(urlOf(station))
-    previewRef.current = audio
-    setPreview({ id: station.stationuuid, status: 'loading' })
-    const fail = () => {
-      if (previewRef.current !== audio) return
-      stopPreview()
-      setPreview({ id: station.stationuuid, status: 'error' })
-    }
-    audio.onerror = fail
-    audio.onended = () => { if (previewRef.current === audio) stopPreview() }
-    const timer = setTimeout(fail, 15000)
-    try {
-      await audio.play()
-      if (previewRef.current !== audio) return
-      setPreview({ id: station.stationuuid, status: 'playing' })
-      fetch('/api/radio-browser/click/' + station.stationuuid, { method: 'POST' }).catch(() => {})
-    } catch { fail() }
-    finally { clearTimeout(timer) }
+    if (preview?.id === station.stationuuid && preview.active) { stopPreview(); return }
+    const started = await onPreview(station)
+    if (started) fetch('/api/radio-browser/click/' + station.stationuuid, { method: 'POST' }).catch(() => {})
   }
   const activeFilters = ['tag', 'countrycode', 'language', 'bitrateMin'].filter(k => filters[k])
   const change = (key, value) => { stopPreview(); setFilters(prev => ({ ...prev, [key]: value })); setOffset(0); setStations([]) }
@@ -138,8 +110,8 @@ export default function RadioBrowser({ open, onClose, streams, categories, initi
           {s.tags && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>{s.tags.split(',').slice(0, 5).join(' · ')}</Typography>}
           {urlOf(s)?.startsWith('http:') && <Typography variant="caption" color="text.secondary">Flux HTTP : lecture selon la compatibilité du navigateur.</Typography>}
           <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-            <Button variant="outlined" disabled={!/^https?:\/\//i.test(urlOf(s))} onClick={() => togglePreview(s)} aria-label={`${preview?.id === s.stationuuid && preview.status !== 'error' ? 'Arrêter la préécoute' : 'Préécouter'} : ${s.name}`} aria-pressed={preview?.id === s.stationuuid && preview.status !== 'error'} sx={{ minHeight: 44 }}>
-              {preview?.id === s.stationuuid && preview.status !== 'error' ? (preview.status === 'loading' ? '■ Connexion…' : '■ Arrêter') : '▶ Écouter'}
+            <Button variant="outlined" disabled={!/^https?:\/\//i.test(urlOf(s))} onClick={() => togglePreview(s)} aria-label={`${preview?.id === s.stationuuid && preview.active ? 'Arrêter la préécoute' : 'Préécouter'} : ${s.name}`} aria-pressed={preview?.id === s.stationuuid && preview.active} sx={{ minHeight: 44 }}>
+              {preview?.id === s.stationuuid && preview.active ? (preview.status !== 'playing' ? '■ Connexion…' : '■ Arrêter') : '▶ Écouter'}
             </Button>
             <Button variant={isSaved(s) ? 'outlined' : 'contained'} disabled={isSaved(s) || saving || !/^https?:\/\//i.test(urlOf(s))} onClick={() => add(s)} aria-label={`${isSaved(s) ? 'Déjà enregistrée' : 'Ajouter'} : ${s.name}`} sx={{ minHeight: 44, bgcolor: isSaved(s) ? undefined : 'var(--primary)' }}>{isSaved(s) ? '✓ Enregistrée' : '+ Ajouter'}</Button>
             {!isSaved(s) && <Button disabled={saving} onClick={() => setEdit({ station: s, name: s.name.trim(), category, favorite, notes: [detailsOf(s), s.tags].filter(Boolean).join(' — ') })} sx={{ minHeight: 44 }}>Personnaliser</Button>}

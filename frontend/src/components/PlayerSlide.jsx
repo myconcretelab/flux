@@ -3,7 +3,7 @@ import { Box, Button, Card, CardContent, Typography, Select, MenuItem } from '..
 import { pickReadableText, tintColor } from '../color-utils'
 
 export default function PlayerSlide({
-  nowName, nowMeta, playing, onPlayPause, audioRef, deezerHref,
+  nowName, nowMeta, playing, playbackMessage, previewing, canPlay, onPlayPause, audioRef, deezerHref,
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
@@ -39,15 +39,16 @@ export default function PlayerSlide({
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px', mb: '10px', alignItems: 'center' }}>
               <Typography sx={{ fontWeight: 700 }}>{nowName}</Typography>
               <Typography className="muted" sx={{ color: 'var(--player-muted)', fontSize: 12 }}>{nowMeta}</Typography>
+              <Typography role="status" sx={{ color: 'var(--player-muted)', fontSize: 12 }}>{playbackMessage}</Typography>
             </Box>
 
             <audio id="audio" ref={audioRef} preload="none" playsInline x-webkit-airplay="allow"></audio>
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '10px', my: '8px' }}>
-              <Button id="playPause" aria-label={playing ? 'Stop' : 'Lecture'} variant="contained" onClick={onPlayPause}
-                disabled={!playerList.find((s) => s.id === lastId)}
+              <Button id="playPause" aria-label={playing ? 'Pause' : 'Lecture'} variant="contained" onClick={onPlayPause}
+                disabled={!canPlay}
                 sx={{ width: 80, height: 80, borderRadius: '50%', p: 0, fontSize: 32, background: 'var(--primary)', borderColor: 'var(--primary)' }}>
-                {playing ? '■' : '▶︎'}
+                {playing ? 'Ⅱ' : '▶︎'}
               </Button>
             </Box>
 
@@ -131,7 +132,7 @@ export default function PlayerSlide({
         >
           {playerList.map((s) => {
             const isCurrent = s.id === lastId
-            const isPlaying = isCurrent && playing
+            const isPlaying = isCurrent && playing && !previewing
             const isActive = isCurrent
             const categoryColor = s.category ? categoryColors[s.category] : null
             const hasCategoryColor = !!categoryColor
@@ -177,7 +178,7 @@ export default function PlayerSlide({
                   type="button"
                   onClick={() => onPlayItem(s.id)}
                   aria-pressed={isPlaying}
-                  aria-label={isPlaying ? `Stop ${s.name}` : `Lire ${s.name}`}
+                  aria-label={isPlaying ? `Pause ${s.name}` : `Lire ${s.name}`}
                   sx={{
                     width: '100%',
                     height: '100%',

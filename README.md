@@ -11,8 +11,8 @@ L'interface se compose de trois panneaux glissables :
 ## Fonctionnalités
 
 - Thème aux accents bleu nuit.
-- Lecture/Pause/Stop d'un flux audio avec réglage du volume.
-- Reprise automatique du dernier flux écouté.
+- Lecture et pause d'un flux audio ; la reprise rouvre le flux au direct.
+- Préparation du dernier flux écouté au démarrage, sans lecture automatique imposée.
 - Liste de flux favoris ou personnalisés avec notes et format.
 - Import et export de la liste au format JSON.
 - Vérification du presse‑papier à l'ouverture du panneau « Gestion des flux » :
@@ -60,3 +60,47 @@ HTTP et HLS restent soumis aux possibilités de lecture du navigateur.
 
 Validation : `node --test tests/radio-browser.test.js`, puis
 `npm --prefix frontend run build`.
+
+## Lecture sur iPhone et écran verrouillé
+
+Le lecteur utilise un seul élément audio pour les radios enregistrées et les
+préécoutes. Les boutons de l'application et les commandes Media Session de
+l'écran verrouillé pilotent le même lecteur. Les titres reçus sont transmis à
+Media Session avec le nom de la radio. Précédent/suivant parcourent la liste
+filtrée affichée dans le lecteur, si le navigateur expose ces commandes.
+
+Une pause ne cherche plus la position zéro d'un flux en direct. La reprise
+ouvre une nouvelle connexion. Les erreurs réseau et les blocages de plus de
+15 secondes déclenchent au maximum trois reconnexions espacées de 1, 3 et
+7 secondes. Hors ligne, le lecteur attend le retour du réseau. Une pause de
+l'utilisateur, une interruption iOS ou le minuteur annulent les reconnexions ;
+le retour au premier plan ne force pas la lecture. Les erreurs sont affichées
+dans le lecteur et consignées dans le journal.
+
+L'API Audio Session est configurée en mode `playback` lorsqu'elle est disponible,
+et ses interruptions sont traitées comme une pause.
+Les commandes Media Session non prises en charge sont ignorées individuellement.
+Les possibilités en arrière-plan et l'affichage des commandes dépendent encore
+de la version d'iOS, du navigateur et du flux.
+
+Validation locale :
+
+```bash
+node --test tests/radio-player.test.mjs tests/radio-browser.test.js
+npm --prefix frontend run build
+```
+
+À vérifier sur un iPhone réel, dans Safari puis depuis le raccourci d'accueil :
+
+1. Lancer une radio HTTPS, verrouiller l'écran et vérifier le nom et le titre.
+2. Mettre en pause et reprendre depuis l'écran verrouillé et les écouteurs.
+3. Changer de station avec précédent/suivant, lorsque ces boutons sont proposés.
+4. Couper puis rétablir le réseau ; vérifier aussi qu'une pause pendant la
+   reconnexion empêche la reprise automatique.
+5. Après un appel ou la lecture dans une autre application, vérifier que Flux
+   reste en pause jusqu'à une nouvelle commande de lecture.
+6. Modifier un favori pendant la lecture, puis tester une préécoute et sa
+   fermeture : aucun second lecteur ni interruption due au favori.
+
+Les tests de navigateur sur ordinateur ne reproduisent pas la suspension iOS
+ni les commandes physiques de l'écran verrouillé.
