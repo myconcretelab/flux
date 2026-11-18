@@ -7,7 +7,7 @@ export default function PlayerSlide({
   logOpen, setLogOpen, logEntries, copyLog,
   sleepMinutes, setSleepMinutes, sleepLeft,
   playerList, lastId, onPlayItem, onAddQuick,
-  categories, categoryFilter, setCategoryFilter, uncategorizedValue,
+  categories, categoryFilter, setCategoryFilter, uncategorizedValue, favoritesValue,
   categoryColors = {},
 }) {
   return (
@@ -110,14 +110,21 @@ export default function PlayerSlide({
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', mb: '10px' }}>
           <Typography component="h2" sx={{ fontSize: 16, m: 0 }}>Vos flux</Typography>
           <Select size="small" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} displayEmpty
+            inputProps={{ 'aria-label': 'Filtrer les radios du lecteur' }}
             sx={{ minWidth: 180, background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}>
             <MenuItem value=""><em>Toutes les catégories</em></MenuItem>
+            <MenuItem value={favoritesValue}>★ Favoris</MenuItem>
             <MenuItem value={uncategorizedValue}>Sans catégorie</MenuItem>
             {categories.map((cat) => (
               <MenuItem key={cat} value={cat}>{cat}</MenuItem>
             ))}
           </Select>
         </Box>
+        {categoryFilter === favoritesValue && playerList.length === 0 && (
+          <Typography role="status" sx={{ color: 'var(--muted)', fontSize: 13, mb: 2 }}>
+            Aucun favori pour le moment. Ajoutez une radio aux favoris avec l’étoile dans la bibliothèque.
+          </Typography>
+        )}
         <Box
           component="ul"
           aria-live="polite"

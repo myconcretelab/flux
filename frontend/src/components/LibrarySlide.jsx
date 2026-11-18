@@ -128,7 +128,7 @@ export default function LibrarySlide({
   onExport, onImport,
   onConsolidateFormats,
   categories, categoryColors, onRenameCategory, onDeleteCategory, onSetCategoryColor, onClearCategoryColor,
-  categoryFilter, onChangeCategoryFilter, uncategorizedValue,
+  categoryFilter, onChangeCategoryFilter, uncategorizedValue, favoritesValue,
 }) {
   const [draggingId, setDraggingId] = useState('')
   const [overId, setOverId] = useState('')
@@ -186,10 +186,11 @@ export default function LibrarySlide({
   const handleDragCancel = () => resetDnD()
 
   const filteredList = useMemo(() => {
+    if (categoryFilter === favoritesValue) return manageList.filter((s) => s.favorite)
     if (categoryFilter === uncategorizedValue) return manageList.filter((s) => !s.category)
     if (categoryFilter) return manageList.filter((s) => (s.category || '') === categoryFilter)
     return manageList
-  }, [manageList, categoryFilter, uncategorizedValue])
+  }, [manageList, categoryFilter, uncategorizedValue, favoritesValue])
   const colorMap = categoryColors || {}
 
   const guessFormat = () => {
@@ -222,10 +223,12 @@ export default function LibrarySlide({
               displayEmpty
               value={categoryFilter}
               onChange={(e) => onChangeCategoryFilter(e.target.value)}
+              inputProps={{ 'aria-label': 'Filtrer les radios de la bibliothèque' }}
               size="small"
               sx={{ minWidth: 200, background: '#fff', borderRadius: '12px', '& fieldset': { borderRadius: '12px' } }}
             >
               <MenuItem value=""><em>Toutes les catégories</em></MenuItem>
+              <MenuItem value={favoritesValue}>★ Favoris</MenuItem>
               <MenuItem value={uncategorizedValue}>Sans catégorie</MenuItem>
               {categories.map((cat) => (
                 <MenuItem value={cat} key={cat}>{cat}</MenuItem>
@@ -235,6 +238,12 @@ export default function LibrarySlide({
               {filteredList.length} / {manageList.length} flux
             </Typography>
           </Box>
+
+          {categoryFilter === favoritesValue && filteredList.length === 0 && (
+            <Typography role="status" sx={{ color: 'var(--muted)', fontSize: 13, mb: 2 }}>
+              Aucun favori pour le moment. Utilisez l’étoile depuis « Toutes les catégories » pour en ajouter.
+            </Typography>
+          )}
 
           <DndContext
             sensors={sensors}

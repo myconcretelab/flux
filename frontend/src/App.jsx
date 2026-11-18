@@ -8,7 +8,7 @@ import { guessStreamFormat } from './format-utils'
 import { useRadioPlayer } from './use-radio-player'
 
 // Utils
-const VERSION = '1.4.2'
+const VERSION = '1.4.3'
 
 function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -192,6 +192,7 @@ export default function App() {
   const { streams, upsert, remove, move, toggleFav, replaceAll, setStreams, loaded: streamsLoaded } = useStreams(addLog)
   const [lastId, setLastId] = useLocalStorage('lastId_v1', null)
   const UNCATEGORIZED = '__UNCATEGORIZED__'
+  const FAVORITES = '__FAVORITES__'
   const categoryFilter = settings.playerCategory || ''
   const categoryColors = settings.categoryColors || {}
   const setCategoryFilter = useCallback((value) => {
@@ -211,7 +212,7 @@ export default function App() {
     } catch {}
   }, [categoryFilter, setCategoryFilter])
 
-  const activeCategory = categoryFilter && categoryFilter !== UNCATEGORIZED ? categoryFilter : ''
+  const activeCategory = categoryFilter && categoryFilter !== UNCATEGORIZED && categoryFilter !== FAVORITES ? categoryFilter : ''
   const categoryBg = activeCategory ? categoryColors[activeCategory] : null
   const effectivePlayerBg = categoryBg || settings.playerBg
 
@@ -232,7 +233,7 @@ export default function App() {
   }, [effectivePlayerBg])
   const [libraryCategoryFilter, setLibraryCategoryFilter] = useState('')
   useEffect(() => {
-    if (!streamsLoaded || libraryCategoryFilter === UNCATEGORIZED) return
+    if (!streamsLoaded || libraryCategoryFilter === UNCATEGORIZED || libraryCategoryFilter === FAVORITES) return
     if (libraryCategoryFilter && !streams.some((s) => (s.category || '') === libraryCategoryFilter)) setLibraryCategoryFilter('')
   }, [streamsLoaded, streams, libraryCategoryFilter, setLibraryCategoryFilter])
 
@@ -288,6 +289,7 @@ export default function App() {
   // Derived lists
   const availableCategories = useMemo(() => Array.from(new Set(streams.map((s) => (s.category || '').trim()).filter(Boolean))).sort(), [streams])
   const playerList = useMemo(() => {
+    if (categoryFilter === FAVORITES) return streams.filter((s) => s.favorite)
     const filtered = categoryFilter === UNCATEGORIZED
       ? streams.filter((s) => !s.category)
       : categoryFilter
@@ -399,7 +401,7 @@ export default function App() {
   }, [streams, replaceAll, addLog])
 
   useEffect(() => {
-    if (!streamsLoaded || categoryFilter === UNCATEGORIZED) return
+    if (!streamsLoaded || categoryFilter === UNCATEGORIZED || categoryFilter === FAVORITES) return
     if (categoryFilter && !streams.some((s) => (s.category || '') === categoryFilter)) setCategoryFilter('')
   }, [streamsLoaded, streams, categoryFilter, setCategoryFilter])
 
@@ -416,7 +418,7 @@ export default function App() {
           playerList, lastId,
           categoryColors,
           categories: availableCategories,
-          categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED,
+          categoryFilter, setCategoryFilter, uncategorizedValue: UNCATEGORIZED, favoritesValue: FAVORITES,
           onPlayItem: (id) => { if (id === lastId && !playback.previewing) onPlayPause(); else selectAndPlay(id) },
           onAddQuick: openDiscovery,
         }}
@@ -433,6 +435,7 @@ export default function App() {
           categoryFilter: libraryCategoryFilter,
           onChangeCategoryFilter: setLibraryCategoryFilter,
           uncategorizedValue: UNCATEGORIZED,
+          favoritesValue: FAVORITES,
           onMove: move,
           onToggleFav: (id) => { toggleFav(id); buzz() },
           onEdit: loadToForm,
